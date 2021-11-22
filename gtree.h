@@ -21,7 +21,7 @@ struct gTree_Node
     GTREE_TYPE data;                /// Stored user-provided data
     size_t child;                   /// Id of the first child
     size_t parent;                  /// Id of the previos node in tree
-    size_t brother;                 /// Id of the right brother node
+    size_t sibling;                 /// Id of the right sibling node
 } typedef gTree_Node;
 
 typedef gTree_Node GOBJPOOL_TYPE;           /// Type for utility Object Pool data structure
@@ -85,7 +85,7 @@ static const char gTree_statusMsg[gTree_status_Cnt][MAX_MSG_LEN] = {
  * @brief Local version of ASSERT_LOG macro 
  */
 #ifndef NLOGS
-#define GTREE_ASSERT_LOG(expr, errCode, logStream) ({                                   \
+#define GTREE_ASSERT_LOG(expr, errCode, logStream) ({                             \
     if (!(expr)) {                                                                 \
         fprintf((logStream),  "%s in %s!\n", gTree_statusMsg[(errCode)], __func__); \
         return (gTree_status)(errCode);                                              \
@@ -98,338 +98,136 @@ static const char gTree_statusMsg[gTree_status_Cnt][MAX_MSG_LEN] = {
 
 /**
  * @brief gTree constructor that initiates objPool and logStream and creates zero node
- * @param list pointer to structure to construct on
+ * @param tree pointer to structure to construct on
  * @param newLogStream new log stream, could be `NULL`, then logs will be written to `stderr`
- * @return gList status code
+ * @return gTree status code
  */
-gTree_status gList_ctor(gList *list, FILE *newLogStream) 
+gTree_status gTree_ctor(gTree *tree, FILE *newLogStream) 
 {
-    if (!gPtrValid(list)) {                                          
+    if (!gPtrValid(tree)) {                                          
         FILE *out;                                                   
         if (!gPtrValid(newLogStream))                                
             out = stderr;                                            
         else                                                         
             out = newLogStream;                                      
-        fprintf(out, "ERROR: bad structure ptr provided to list ctor!\n");
+        fprintf(out, "ERROR: bad structure ptr provided to tree ctor!\n");
         return gTree_status_BadStructPtr;                         
     }
 
-    if (!gPtrValid(newLogStream))
-        list->logStream = stderr;
-    else 
-        list->logStream = newLogStream;
+    tree->logStream = stderr;
+    if (gPtrValid(newLogStream))
+        tree->logStream = newLogStream;
 
-    list->size = 0;
-    gObjPool_status status = gObjPool_ctor(&list->pool, -1, newLogStream);
+    gObjPool_status status = gObjPool_ctor(&tree->pool, -1, newLogStream);
     CHECK_POOL_STATUS(status);
-    status = gObjPool_alloc(&list->pool, &list->zero);
+
+    status = gObjPool_alloc(&tree->pool, &tree->root);
     CHECK_POOL_STATUS(status);
-    gList_Node *node;
-    status = gObjPool_get(&list->pool, list->zero, &node);
+    gTree_Node *node;
+    status = gObjPool_get(&tree->pool, tree->root, &node);
     CHECK_POOL_STATUS(status);
-    node->next = list->zero;
-    node->prev = list->zero;
-    node->id = list->zero;
+    node->parent  = -1;
+    node->child   = -1;
+    node->sibling = -1;
     return gTree_status_OK;
 }
 
 
 /**
- * @brief gList destructor 
- * @param list pointer to structure to destruct
- * @return gList status code
+ * @brief gTree destructor 
+ * @param tree pointer to structure to destruct
+ * @return gTree status code
  */
-gTree_status gList_dtor(gList *list) 
+gTree_status gTree_dtor(gTree *tree) 
 {
-    GTREE_ASSERT_LOG(gPtrValid(list), gTree_status_BadStructPtr, stderr);
-    list->size = -1; 
-    gList_Node *node = NULL;
-    gObjPool_get(&list->pool, list->zero, &node);
+    GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
+    gTree_Node *node = NULL;
+    gObjPool_status status = gObjPool_status_OK;
+    status = gObjPool_get(&tree->pool, tree->root, &node);
     if (node != NULL) {
-        node->next = -1;
-        node->prev = -1;
+        node->parent  = -1;
+        node->child   = -1;
+        node->sibling = -1;
     }
-    gObjPool_dtor(&list->pool);
+    status = gObjPool_dtor(&tree->pool);
     return gTree_status_OK;
 }
 
 
-/**
- * @brief sorts objPool to correspond the actual order of elements in the list
- * @param list pointer to structure to sort
- * @return gList status code
- */
-gTree_status gList_posSort(gList *list)
+gTree_status gTree_addSibling(gTree *tree, size_t siblingId, GTREE_TYPE data)
 {
-    GTREE_ASSERT_LOG(gPtrValid(list), gTree_status_BadStructPtr, stderr);
+    gTree_Node *sibling = NULL, *child = NULL;
+    gObjPool_status status = gObjPool_status_OK;
 
-    gList_Node *node    = NULL;
-    gList_Node *newNode = NULL;
-    size_t newId = 0;
-    gObjPool newPool;
-    gObjPool_ctor(&newPool, list->pool.capacity, list->logStream);
-    size_t i = 0;
-    gTree_status status = gTree_status_OK;
+    size_t childId = -1;
+    status = gObjPool_alloc(&tree->pool, &childId);
+    CHECK_POOL_STATUS(status);
 
-    status = (gTree_status)gObjPool_get(&list->pool, list->zero, &node);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-    do {
-        status =(gTree_status)gObjPool_alloc(&newPool, &newId);
-        GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
+    status = gObjPool_get(&tree->pool, siblingId, &sibling);
+    CHECK_POOL_STATUS(status);
 
-        status =(gTree_status)gObjPool_get(&newPool, newId, &newNode);
-        GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
+    status = gObjPool_get(&tree->pool, childId, &child);
+    CHECK_POOL_STATUS(status);
 
-        newNode->id = i;
-        newNode->next = i + 1;
-        newNode->prev = i - 1;
-        newNode->data = node->data;
-        ++i;
-        
-        status =(gTree_status)gObjPool_get(&list->pool, node->next, &node);
-        GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-    } while (node->id != list->zero);
-
-    gList_Node *zeroNode = NULL;
-    
-    status =(gTree_status)gObjPool_get(&newPool, 0, &zeroNode);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-    
-    newNode->next = 0;
-    zeroNode->prev = newNode->id;
-
-    gObjPool_dtor(&list->pool);
-    list->pool = newPool;
-
-    return gTree_status_OK;
-}
-
-
-/**
- * @brief return the id of the next Node (could be zero Node, if list is empty or used on the last element)
- * @param list pointer to structure
- * @param id id of the current Node
- * @param nextId pointer to id of the next Node, will be overriden
- * @return gList status code
- */
-gTree_status gList_getNextId(const gList *list, const size_t id, size_t *nextId) 
-{
-    GTREE_ASSERT_LOG(gPtrValid(list), gTree_status_BadStructPtr, stderr);
-
-    gList_Node *node = NULL;
-    gObjPool_status status = gObjPool_get(&list->pool, id, &node);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-    
-    *nextId = node->next;
-
-    return gTree_status_OK;
-}
-
-/**
- * @brief return the pointer of the next Node (could be zero Node, if list is empty or used on the last element)
- * @param list pointer to structure
- * @param id id of the current Node
- * @param nextNode pointer to pointer to the next Node, will be overriden
- * @return gList status code
- */
-gTree_status gList_getNextNode(const gList *list, const size_t id, gList_Node **nextNode) 
-{
-    GTREE_ASSERT_LOG(gPtrValid(list), gTree_status_BadStructPtr, stderr);
-
-    gList_Node *node = NULL;
-    gObjPool_status status = gObjPool_get(&list->pool, id, &node);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-    
-    status = gObjPool_get(&list->pool, node->next, nextNode);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-
-    return gTree_status_OK;
-}
-
-
-/**
- * @brief gets list Node by position [takes O(n) time]
- * @param list pointer to structure
- * @param pos position of the desired Node
- * @param node pointer to pointer to the desired Node, will be overriden
- * @return gList status code
- */
-gTree_status gList_getNode(const gList *list, const size_t pos, gList_Node **node) 
-{
-    GTREE_ASSERT_LOG(gPtrValid(list), gTree_status_BadStructPtr, stderr);
-    size_t curId = list->zero;
-    gTree_status status = gTree_status_OK;
-    for (size_t i = 0; i < pos; ++i) {                          //TODO calibrate
-        status = gList_getNextId(list, curId, &curId);
-        if (status == gTree_status_BadId)
-            GTREE_ASSERT_LOG(status == gTree_status_OK, gTree_status_BadPos, list->logStream);
-        GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
+    while (sibling->sibling != -1) {
+        siblingId = sibling->sibling;
+        status = gObjPool_get(&tree->pool, siblingId, &sibling);
+        CHECK_POOL_STATUS(status);
     }
-    status = (gTree_status)gObjPool_get(&list->pool, curId, node);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-
-    return gTree_status_OK;
-}
-
-
-/**
- * @brief gets the data in the Node by the desired position [takes O(n) time]
- * @param list pointer to structure
- * @param pos position of the desired Node
- * @param data pointer to pointer to the Data by desired position, will be overriden
- * @return gList status code
- */
-gTree_status gList_getData(const gList *list, const size_t pos, GTREE_TYPE **data) 
-{
-    GTREE_ASSERT_LOG(gPtrValid(list), gTree_status_BadStructPtr, stderr);
-    gList_Node *node = NULL;
-    gTree_status status = gList_getNode(list, pos, &node);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-    *data = &node->data;
-
-    return gTree_status_OK;
-}
-
-
-/**
- * @brief insert Node after given one
- * @param list pointer to structure
- * @param id the id of the node to insert after (could be zero Node)
- * @param data data to put into the new node
- * @return gList status code
- */
-gTree_status gList_insertByNode(gList *list, size_t nodeId, const GTREE_TYPE data)       
-{
-    GTREE_ASSERT_LOG(gPtrValid(list), gTree_status_BadStructPtr, stderr);
+    sibling->sibling = childId;    
+    child->parent  = sibling->parent;
+    child->child   = -1;
+    child->sibling = -1;
+    child->data = data;
     
-    gList_Node *node = NULL;
-    gTree_status status = (gTree_status)gObjPool_get(&list->pool, nodeId, &node);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
+    return gTree_status_OK;
+}
 
-    size_t nextNodeId = node->next;
-    size_t prevNodeId = node->id;
 
-    size_t newNodeId = 0;
-    status = (gTree_status)gObjPool_alloc(&list->pool, &newNodeId);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-        
-    gList_Node *nextNode = NULL;
-    status = (gTree_status)gObjPool_get(&list->pool, nextNodeId, &nextNode);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
+gTree_status gTree_addChild(gTree *tree, size_t nodeId, GTREE_TYPE data)
+{
+    GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
+    gTree_Node *node = NULL, *child = NULL, *sibling = NULL;
+    gObjPool_status status = gObjPool_status_OK;
+    size_t childId = -1;
+
+    status = gObjPool_alloc(&tree->pool, &childId);
+    CHECK_POOL_STATUS(status);
+
+    status = gObjPool_get(&tree->pool, nodeId, &node);
+    CHECK_POOL_STATUS(status);
+    size_t siblingId = node->child;
  
-    gList_Node *newNode = NULL;
-    status = (gTree_status)gObjPool_get(&list->pool, newNodeId, &newNode);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
+    status = gObjPool_get(&tree->pool, childId, &child);
+    CHECK_POOL_STATUS(status);
+
+    if (node->child == -1) {
+        node->child = childId;
+    } else {
+        status = gObjPool_get(&tree->pool, siblingId, &sibling);
+        CHECK_POOL_STATUS(status);
+
+        while (sibling->sibling != -1) {
+            siblingId = sibling->sibling;
+            status = gObjPool_get(&tree->pool, siblingId, &sibling);
+            CHECK_POOL_STATUS(status);
+        }
+        sibling->sibling = childId;
+    }
+    child->parent  = nodeId;
+    child->child   = -1;
+    child->sibling = -1;
+    child->data = data;
     
-    status = (gTree_status)gObjPool_get(&list->pool, prevNodeId, &node);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-
-    newNode->next = nextNodeId;
-    newNode->prev = prevNodeId;
-    newNode->id   = newNodeId;
-    newNode->data = data;
-    
-    node->next     = newNodeId;
-    nextNode->prev = newNodeId;
-
-    ++list->size;
-    
-    return gTree_status_OK;
-}
-
-
-/**
- * @brief insert Node after given one
- * @param list pointer to structure
- * @param id the id of the node to insert after (could be zero Node)
- * @param data data to put into the new node
- * @return gList status code
- */
-gTree_status gList_insertByPos(gList *list, const size_t pos, GTREE_TYPE data)
-{
-    GTREE_ASSERT_LOG(gPtrValid(list), gTree_status_BadStructPtr, stderr);
-    gTree_status status = gTree_status_OK;
-    
-    gList_Node *node = NULL;
-    status = gList_getNode(list, pos, &node);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-
-    status = gList_insertByNode(list, node->id, data);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-
-    return gTree_status_OK;
-}
-
-
-/**
- * @brief pop Node by id
- * @param list pointer to structure
- * @param id the id of the Node to pop
- * @param data pointer to put into the data to, if `NULL`, discards the data
- * @return gList status code
- */
-gTree_status gList_popByNode(gList *list, size_t nodeId, GTREE_TYPE *data)
-{
-    GTREE_ASSERT_LOG(gPtrValid(list), gTree_status_BadStructPtr, stderr);
-
-    gList_Node *node = NULL;
-    gTree_status status = (gTree_status)gObjPool_get(&list->pool, nodeId, &node);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-
-    gList_Node *prevNode = NULL;
-    status = (gTree_status)gObjPool_get(&list->pool, node->prev, &prevNode);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
- 
-    gList_Node *nextNode = NULL;
-    status = (gTree_status)gObjPool_get(&list->pool, node->next, &nextNode);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-
-    prevNode->next = nextNode->id;
-    nextNode->prev = prevNode->id;
-
-    node->next = -1;
-    node->prev = -1;
-    
-    if (data != NULL)
-        *data = node->data;
-
-    status = (gTree_status)gObjPool_free(&list->pool, node->id);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-
-    --list->size;
-
-    return gTree_status_OK;
-}
-
-
-/**
- * @brief pop Node by position
- * @param list pointer to structure
- * @param pos the position of the Node to pop
- * @param data pointer to put into the data to, if `NULL`, discards the data
- * @return gList status code
- */
-gTree_status gList_popByPos(gList *list, const size_t pos, GTREE_TYPE *data)
-{
-    GTREE_ASSERT_LOG(gPtrValid(list), gTree_status_BadStructPtr, stderr);
-    gTree_status status = gTree_status_OK;
-    
-    gList_Node *node = NULL;
-    status = gList_getNode(list, pos, &node);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-
-    status = gList_popByNode(list, node->id, data);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-
     return gTree_status_OK;
 }
 
 
 /**
  * @brief dumps gList to logStream
- * @param list pointer to structure
- * @return gList status code
- */
+ * @param list pointer to structure     //TODO
+ * @return gTree status code
+ *
 gTree_status gList_dump(const gList *list)
 {
     GTREE_ASSERT_LOG(gPtrValid(list), gTree_status_BadStructPtr, stderr);
@@ -451,33 +249,33 @@ gTree_status gList_dump(const gList *list)
     fprintf(list->logStream, "\n%s\n", LOG_DELIM);
     return gTree_status_OK;
 }
-
+ */
 
 /**
- * @brief dumps objPool of the list to fout stream in GraphViz format
- * @param list pointer to structure
+ * @brief dumps objPool of the tree to fout stream in GraphViz format
+ * @param tree pointer to structure
  * @param fout stream to write dump to
- * @return gList status code
+ * @return gTree status code
  */
-gTree_status gList_dumpPoolGraphViz(const gList *list, FILE *fout)
+gTree_status gTree_dumpPoolGraphViz(const gTree *tree, FILE *fout)
 {
-    GTREE_ASSERT_LOG(gPtrValid(list), gTree_status_BadStructPtr,  stderr);
+    GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
     GTREE_ASSERT_LOG(gPtrValid(fout), gTree_status_BadDumpOutPtr, stderr);
     
     fprintf(fout, "digraph dilist {\n\tnode [shape=record]\n\tsubgraph cluster {\n");
     
-    for (size_t i = 0; i < list->pool.capacity; ++i) {
-        gList_Node *node = &list->pool.data[i].val;
-        fprintf(fout, "\t\tnode%lu [label=\"Node %lu | {node_id | %lu} | {data | " GTREE_PRINTF_CODE "}\"]\n", i, i, node->id, node->data);
+    for (size_t i = 0; i < tree->pool.capacity; ++i) {
+        gTree_Node *node = &tree->pool.data[i].val;
+        fprintf(fout, "\t\tnode%lu [label=\"Node %lu | | {data | " GTREE_PRINTF_CODE "}\"]\n", i, i, node->data);
     }
 
     fprintf(fout, "\t}\n");
     
-    for (size_t i = 0; i < list->pool.capacity; ++i) {
-        gList_Node *node = &list->pool.data[i].val;
-        if (node->id != 0 || node->next != 0) {
-            fprintf(fout, "\tnode%lu -> node%lu\n", i, node->next);
-            fprintf(fout, "\tnode%lu -> node%lu\n", node->next, i);
+    for (size_t i = 0; i < tree->pool.capacity; ++i) {
+        gTree_Node *node = &tree->pool.data[i].val;
+        fprintf(stderr, "id = %lu | allocated = %d | data = %d\n", i, (&tree->pool.data[i])->allocated, node->data);
+        if ((&tree->pool.data[i])->allocated && (node->parent != -1)) {
+            fprintf(fout, "\tnode%lu -> node%lu\n", node->parent, i);
         }
     }
 
@@ -487,20 +285,20 @@ gTree_status gList_dumpPoolGraphViz(const gList *list, FILE *fout)
 
 
 /**
- * @brief dumps gList to logStream
- * @param list pointer to structure
- * @return gList status code
- */
-gTree_status gList_dumpGraphViz(const gList *list, FILE *fout)
+ * @brief dumps gTree to logStream
+ * @param tree pointer to structure
+ * @return gTree status code                //TODO
+ *
+gTree_status gList_dumpGraphViz(const gTree *tree, FILE *fout)
 {
-    GTREE_ASSERT_LOG(gPtrValid(list), gTree_status_BadStructPtr,  stderr);
+    GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
     GTREE_ASSERT_LOG(gPtrValid(fout), gTree_status_BadDumpOutPtr, stderr);
 
     gList_Node *node = NULL;
     gTree_status status = gTree_status_OK;
     fprintf(fout, "digraph dilist {\n\tnode [shape=record]\n");
     
-    status = (gTree_status)gObjPool_get(&list->pool, list->zero, &node);
+    status = (gTree_status)gObjPool_get(&tree->pool, tree->root, &node);
     fprintf(fout, "\tnode%lu [label=\"Node %lu | {size | %lu} | {data | " GTREE_PRINTF_CODE "}\"]\n", node->id, node->id, list->size, node->data);
     fprintf(fout, "\tnode%lu -> node%lu\n", node->id, node->next);
     fprintf(fout, "\tnode%lu -> node%lu\n", node->next, node->id);
@@ -517,3 +315,4 @@ gTree_status gList_dumpGraphViz(const gList *list, FILE *fout)
     fprintf(fout, "}\n");
     return gTree_status_OK;
 }
+ */

@@ -52,7 +52,7 @@ set_target_properties(gmock_main PROPERTIES FOLDER extern)
 
 enable_testing()
 
-add_executable(gtree-test gtree.h gtree-test.cpp)
+add_executable(gtree-test gtree.h test-gtree.cpp)
 
 target_link_libraries(
     gtree-test
