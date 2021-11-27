@@ -95,6 +95,11 @@ static const char gTree_statusMsg[gTree_status_Cnt][MAX_MSG_LEN] = {
 #define GTREE_ASSERT_LOG(...) 
 #endif
 
+#define GTREE_NODE_BY_ID(tree, id) ({                         \
+    gTree_Node *node;                                          \
+    CHECK_POOL_STATUS(gObjPool_get(&tree->pool, id, &node));    \
+    node;                                                        \
+})
 
 /**
  * @brief gTree constructor that initiates objPool and logStream and creates zero node
@@ -154,7 +159,7 @@ gTree_status gTree_dtor(gTree *tree)
 }
 
 
-gTree_status gTree_addSibling(gTree *tree, size_t siblingId, GTREE_TYPE data)
+gTree_status gTree_addSibling(gTree *tree, size_t siblingId, size_t *id, GTREE_TYPE data)
 {
     gTree_Node *sibling = NULL, *child = NULL;
     gObjPool_status status = gObjPool_status_OK;
@@ -184,7 +189,7 @@ gTree_status gTree_addSibling(gTree *tree, size_t siblingId, GTREE_TYPE data)
 }
 
 
-gTree_status gTree_addChild(gTree *tree, size_t nodeId, GTREE_TYPE data)
+gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id, GTREE_TYPE data)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
     gTree_Node *node = NULL, *child = NULL, *sibling = NULL;
@@ -222,34 +227,53 @@ gTree_status gTree_addChild(gTree *tree, size_t nodeId, GTREE_TYPE data)
     return gTree_status_OK;
 }
 
-
-/**
- * @brief dumps gList to logStream
- * @param list pointer to structure     //TODO
- * @return gTree status code
- *
-gTree_status gList_dump(const gList *list)
+gTree_status gTree_delChild(gTree *tree, size_t parentId, size_t pos, GTREE_TYPE *data)
 {
-    GTREE_ASSERT_LOG(gPtrValid(list), gTree_status_BadStructPtr, stderr);
-
-    gList_Node *node = NULL;
-    gTree_status status = gTree_status_OK;
-    fprintf(list->logStream, "%s\ngList dump:\n%s\nsize = %lu\nzero_id = %lu\ndata:", LOG_DELIM, LOG_DELIM, list->size, list->zero);
+    size_t siblingId = GTREE_NODE_BY_ID(tree, parentId)->child;
+    gTree_Node *node    = NULL;
+    gTree_Node *sibling = NULL;
+    size_t childId = -1;
+    size_t nodeId  = -1;
+    if (pos == 0) {
+        nodeId = siblingId;
+        node = GTREE_NODE_BY_ID(tree, nodeId);
+        sibling = GTREE_NODE_BY_ID(tree, siblingId);
+        childId = sibling->child;
+        GTREE_NODE_BY_ID(tree, parentId)->child = childId;
+    } else {
+        for (size_t i = 0; i + 1 < pos; ++i) {
+            siblingId = GTREE_NODE_BY_ID(tree, siblingId)->sibling;
+        }
+        sibling = GTREE_NODE_BY_ID(tree, siblingId);
+        nodeId = sibling->sibling;
+        node = GTREE_NODE_BY_ID(tree, nodeId);
+        childId = node->child;
+        sibling->sibling = childId;
+    }
     
-    status = (gTree_status)gObjPool_get(&list->pool, list->zero, &node);
-    fprintf(list->logStream, "( id = %lu | data = " GTREE_PRINTF_CODE " | prev = %lu | next = %lu ) -> ", node->id, node->data, node->prev, node->next);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-    do {
-        status = gList_getNextNode(list, node->id, &node);
-        GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
+    assert(gPtrValid(node));
 
-        fprintf(list->logStream, "( id = %lu | data = " GTREE_PRINTF_CODE " | prev = %lu | next = %lu ) -> ", node->id, node->data, node->prev, node->next);
-    } while (node->id != list->zero);
-    
-    fprintf(list->logStream, "\n%s\n", LOG_DELIM);
+    if (childId != -1) {
+        size_t subSiblingId = childId;
+        gTree_Node *subSibling = NULL;
+        while (subSiblingId != -1) {
+            subSibling = GTREE_NODE_BY_ID(tree, subSiblingId);
+            subSiblingId = subSibling->sibling;
+            subSibling->parent = parentId;
+        }
+
+        subSibling->sibling = node->sibling;
+    } else {
+        sibling->sibling = node->sibling;
+        node->sibling = -1;
+    }
+
+    if (data)
+        *data = node->data;
+
+    gObjPool_free(&tree->pool, nodeId);
     return gTree_status_OK;
 }
- */
 
 /**
  * @brief dumps objPool of the tree to fout stream in GraphViz format
@@ -276,43 +300,11 @@ gTree_status gTree_dumpPoolGraphViz(const gTree *tree, FILE *fout)
         fprintf(stderr, "id = %lu | allocated = %d | data = %d\n", i, (&tree->pool.data[i])->allocated, node->data);
         if ((&tree->pool.data[i])->allocated && (node->parent != -1)) {
             fprintf(fout, "\tnode%lu -> node%lu\n", node->parent, i);
+            if (node->sibling != -1)
+                fprintf(fout, "\tnode%lu -> node%lu [style=dotted]\n", i, node->sibling);
         }
     }
 
     fprintf(fout, "}\n");
     return gTree_status_OK;
 }
-
-
-/**
- * @brief dumps gTree to logStream
- * @param tree pointer to structure
- * @return gTree status code                //TODO
- *
-gTree_status gList_dumpGraphViz(const gTree *tree, FILE *fout)
-{
-    GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
-    GTREE_ASSERT_LOG(gPtrValid(fout), gTree_status_BadDumpOutPtr, stderr);
-
-    gList_Node *node = NULL;
-    gTree_status status = gTree_status_OK;
-    fprintf(fout, "digraph dilist {\n\tnode [shape=record]\n");
-    
-    status = (gTree_status)gObjPool_get(&tree->pool, tree->root, &node);
-    fprintf(fout, "\tnode%lu [label=\"Node %lu | {size | %lu} | {data | " GTREE_PRINTF_CODE "}\"]\n", node->id, node->id, list->size, node->data);
-    fprintf(fout, "\tnode%lu -> node%lu\n", node->id, node->next);
-    fprintf(fout, "\tnode%lu -> node%lu\n", node->next, node->id);
-    GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-    do {
-        status = gList_getNextNode(list, node->id, &node);
-        GTREE_ASSERT_LOG(status == gTree_status_OK, status, list->logStream);
-
-        fprintf(fout, "\tnode%lu [label=\"Node %lu | {data | " GTREE_PRINTF_CODE "}\"]\n", node->id, node->id, node->data);
-        fprintf(fout, "\tnode%lu -> node%lu\n", node->id, node->next);
-        fprintf(fout, "\tnode%lu -> node%lu\n", node->next, node->id);
-    } while (node->id != list->zero);
-    
-    fprintf(fout, "}\n");
-    return gTree_status_OK;
-}
- */
