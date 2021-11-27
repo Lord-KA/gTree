@@ -3,7 +3,24 @@ typedef int GTREE_TYPE;
 
 #include "gtree.h"
 
-int main()
+bool gTree_storeData(int data, size_t level, FILE *out) 
+{
+    for (size_t i = 0; i < level; ++i) 
+        fprintf(out, "\t");
+    fprintf(out, "%d\n", data);
+
+    return 0;
+}
+
+bool gTree_restoreData(int *data, char buffer[])
+{
+    if (sscanf(buffer, "%d", data) != 1)
+        return 1;
+    return 0;
+}
+
+
+int test_1()
 {
     gTree treeStruct;
     gTree *tree = &treeStruct;
@@ -37,5 +54,40 @@ int main()
 
     gObjPool_dumpFree(&tree->pool, stderr);
 
+    fout = fopen("store.gtree", "w");
+    gTree_storeSubTree(tree, tree->root, 0, fout);
+    fclose(fout);
+
     gTree_dtor(tree);
+
+    return 0;
+}
+
+int test_2()
+{
+    gTree tree;
+    FILE *fin = fopen("store.gtree", "r");
+    gTree_restoreTree(&tree, stderr, fin);
+    fclose(fin);
+
+    FILE *fout = fopen("dump.gv", "w");
+    gTree_dumpPoolGraphViz(&tree, fout);
+    fclose(fout);
+
+    gTree_dtor(&tree);
+
+    return 0;
+}
+
+int test_3()
+{
+    char buffer[MAX_BUFFER_LEN] = "1   \t {   ";
+    char needle[MAX_BUFFER_LEN] = "{";
+    printf("cosistsOnly(\"%s\", \"%s\") = %d\n", buffer, needle, consistsOnly(buffer, needle));
+    return 0;
+}
+
+int main()
+{
+    test_2();
 }

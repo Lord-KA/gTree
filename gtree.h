@@ -11,6 +11,8 @@
 
 static const size_t MAX_MSG_LEN = 64;       /// Max log message length
 
+static const size_t MAX_BUFFER_LEN = 1024;       /// Max restore buffer length
+
 static const char LOG_DELIM[] = "=============================";    /// Delim line for text logs
 
 /** 
@@ -28,6 +30,8 @@ typedef gTree_Node GOBJPOOL_TYPE;           /// Type for utility Object Pool dat
 
 #include "gobjpool.h"           // including utility Object Pool data structure
 
+bool gTree_storeData(GTREE_TYPE data, size_t level, FILE *out);
+bool gTree_restoreData(GTREE_TYPE *data, char buffer[]);
 
 /**
  * @brief main linked list structure
@@ -53,6 +57,8 @@ enum gTree_status
     gTree_status_BadPos,
     gTree_status_BadNodePtr,
     gTree_status_BadDumpOutPtr,
+    gTree_status_BadData,
+    gTree_status_BadRestoration,
     gTree_status_Cnt,
 };
 
@@ -69,6 +75,8 @@ static const char gTree_statusMsg[gTree_status_Cnt][MAX_MSG_LEN] = {
     "Bad position requested",
     "Bad node pointer provided",
     "Bad FILE pointer provided to graphViz dump",
+    "Error during data restoration",
+    "Error during tree restoration",
 };
 
 
@@ -146,6 +154,7 @@ gTree_status gTree_ctor(gTree *tree, FILE *newLogStream)
 gTree_status gTree_dtor(gTree *tree) 
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
+
     gTree_Node *node = NULL;
     gObjPool_status status = gObjPool_status_OK;
     status = gObjPool_get(&tree->pool, tree->root, &node);
@@ -161,6 +170,8 @@ gTree_status gTree_dtor(gTree *tree)
 
 gTree_status gTree_addSibling(gTree *tree, size_t siblingId, size_t *id, GTREE_TYPE data)
 {
+    GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
+
     gTree_Node *sibling = NULL, *child = NULL;
     gObjPool_status status = gObjPool_status_OK;
 
@@ -192,6 +203,7 @@ gTree_status gTree_addSibling(gTree *tree, size_t siblingId, size_t *id, GTREE_T
 gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id, GTREE_TYPE data)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
+
     gTree_Node *node = NULL, *child = NULL, *sibling = NULL;
     gObjPool_status status = gObjPool_status_OK;
     size_t childId = -1;
@@ -223,12 +235,16 @@ gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id, GTREE_TYPE d
     child->child   = -1;
     child->sibling = -1;
     child->data = data;
+
+    *id = childId;
     
     return gTree_status_OK;
 }
 
 gTree_status gTree_delChild(gTree *tree, size_t parentId, size_t pos, GTREE_TYPE *data)
 {
+    GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
+
     size_t siblingId = GTREE_NODE_BY_ID(tree, parentId)->child;
     gTree_Node *node    = NULL;
     gTree_Node *sibling = NULL;
@@ -284,7 +300,7 @@ gTree_status gTree_delChild(gTree *tree, size_t parentId, size_t pos, GTREE_TYPE
 gTree_status gTree_dumpPoolGraphViz(const gTree *tree, FILE *fout)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
-    GTREE_ASSERT_LOG(gPtrValid(fout), gTree_status_BadDumpOutPtr, stderr);
+    GTREE_ASSERT_LOG(gPtrValid(fout), gTree_status_BadDumpOutPtr, tree->logStream);
     
     fprintf(fout, "digraph dilist {\n\tnode [shape=record]\n\tsubgraph cluster {\n");
     
@@ -306,5 +322,125 @@ gTree_status gTree_dumpPoolGraphViz(const gTree *tree, FILE *fout)
     }
 
     fprintf(fout, "}\n");
+    return gTree_status_OK;
+}
+
+
+gTree_status gTree_storeSubTree(const gTree *tree, size_t nodeId, size_t level, FILE *out) 
+{
+    GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
+    GTREE_ASSERT_LOG(gPtrValid(out),  gTree_status_BadDumpOutPtr, tree->logStream);
+
+    gTree_Node *node = GTREE_NODE_BY_ID(tree, nodeId);
+    gTree_status status = gTree_status_OK;
+
+    for (size_t i = 0; i < level; ++i)
+        fprintf(out, "\t");
+    fprintf(out, "{\n");
+
+    gTree_storeData(node->data, level + 1, out);
+    size_t childId = node->child;
+    while (childId != -1) {
+        status = gTree_storeSubTree(tree, childId, level + 1, out);
+        GTREE_ASSERT_LOG(status == gTree_status_OK, status, tree->logStream);
+        childId = GTREE_NODE_BY_ID(tree, childId)->sibling;
+    }
+
+    for (size_t i = 0; i < level; ++i)
+        fprintf(out, "\t");
+    fprintf(out, "}\n");
+
+    return gTree_status_OK;
+}
+
+bool consistsOnly(const char * const haystack, const char * const needle)
+{
+    char *haystackIter = (char*)haystack;
+    char *needleIter   = (char*)needle;
+    while (isspace(*(haystackIter)))
+        ++haystackIter;
+    while (*needleIter != '\0' && *haystackIter != '\0') {
+        if (*needleIter != *haystackIter)
+            return false;
+        ++needleIter;
+        ++haystackIter;
+    }
+    if (*needleIter != '\0')
+        return false;
+    if (*haystackIter == '\0')
+        return true;
+
+    while (isspace(*(haystackIter))) 
+        haystackIter;
+    if (*haystackIter == '\0')
+        return true;
+    else
+        return false;
+}
+
+/** 
+ * WARNING: Tree restoration (below) just somewhat supports lines with only spaces and doesn't support nor checks lines that don't follow the format
+ */
+gTree_status gTree_restoreSubTree(gTree *tree, size_t nodeId, FILE *in)
+{
+    GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
+    //TODO check `in`
+
+    gTree_Node *node = GTREE_NODE_BY_ID(tree, nodeId);
+    gTree_status status = gTree_status_OK;
+    
+    char buffer[MAX_BUFFER_LEN] = "";
+    fprintf(stderr, "Restoring subTree from node %lu\n", nodeId);
+
+    getline(buffer, MAX_BUFFER_LEN, in);
+    fprintf(stderr, "Buffer = #%s#\n", buffer);
+    GTREE_ASSERT_LOG(gTree_restoreData(&node->data, buffer) == 0, gTree_status_BadData, tree->logStream);
+    size_t  curChildId = -1;
+    size_t prevChildId = -1;
+    GTREE_TYPE dummyData = {};
+    int bracketCnt = 1;
+    while (!feof(in)) {          //TODO check for ferror
+        getline(buffer, MAX_BUFFER_LEN, in);
+        fprintf(stdout, "Buffer = #%s#\nbracketCnt = %d\n", buffer, bracketCnt);
+        if (consistsOnly(buffer, "{")) {
+            ++bracketCnt;
+            prevChildId = curChildId;
+            status = gTree_addChild(tree, nodeId, &curChildId, dummyData);
+            GTREE_ASSERT_LOG(status == gTree_status_OK, status, tree->logStream);
+            gTree_Node *curChild = GTREE_NODE_BY_ID(tree, curChildId);
+            curChild->parent = nodeId;
+            curChild->child  = -1;
+
+            status = gTree_restoreSubTree(tree, curChildId, in);
+            GTREE_ASSERT_LOG(status == gTree_status_OK, status, tree->logStream);
+
+            if (prevChildId != -1)
+                GTREE_NODE_BY_ID(tree, prevChildId)->sibling = curChildId;
+            else 
+                GTREE_NODE_BY_ID(tree, nodeId)->child = curChildId;
+        } else if (consistsOnly(buffer, "}")) {
+            --bracketCnt;
+        }
+        if (bracketCnt <= 1)
+            break;
+    }
+
+    fprintf(stderr, "End of restoring subTree from node %lu\n", nodeId);
+
+    return gTree_status_OK;
+}
+
+gTree_status gTree_restoreTree(gTree *tree, FILE *newLogStream, FILE *in)       // WARNING: tree structure must be uninitialized
+{
+    gTree_ctor(tree, newLogStream);
+    char buffer[MAX_BUFFER_LEN] = "";
+    getline(buffer, MAX_BUFFER_LEN, in);
+    gTree_status status = gTree_status_OK;
+
+    if (consistsOnly(buffer, "{")) {
+        status = gTree_restoreSubTree(tree, tree->root, in);
+        GTREE_ASSERT_LOG(status == gTree_status_OK, status, tree->logStream);
+    }
+    
     return gTree_status_OK;
 }
