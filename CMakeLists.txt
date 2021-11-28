@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.14)
 project(GTree)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g" CACHE STRING "Comment" FORCE)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "Comment" FORCE)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -D NDEBUG" CACHE STRING "Comment" FORCE)
-set(CMAKE_CXX_FLAGS_SANITIZER "${CMAKE_CXX_FLAGS} -Wpedantic -Wall -Wextra -Wformat=2 -fsanitize=address,undefined -g -D __SANITIZE_ADDRESS__" CACHE STRING "Comment" FORCE)
+set(CMAKE_CXX_FLAGS_SANITIZER "${CMAKE_CXX_FLAGS} -Wpedantic -Wall -Wextra -Wformat=2 -fsanitize=address,undefined -g -D __SANITIZE_ADDRESS__ -D EXTRA_VERBOSE" CACHE STRING "Comment" FORCE)
 set(CMAKE_CXX_FLAGS_FULL_DEBUG "${CMAKE_CXX_FLAGS} -D FULL_DEBUG -Wpedantic -Wall -Wextra -Wformat=2 -fsanitize=address,undefined -g" CACHE STRING "Comment" FORCE)
 set(CMAKE_CXX_FLAGS_CHEAP_DEBUG "${CMAKE_CXX_FLAGS} -D CHEAP_DEBUG -Wpedantic -Wall -Wextra -Wformat=2 -fsanitize=address,undefined -g" CACHE STRING "Comment" FORCE)
 set(CMAKE_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS} -D NDEBUG -fprofile-instr-generate -fcoverage-mapping" CACHE STRING "Comment" FORCE)
@@ -26,7 +26,7 @@ endif()
 FetchContent_Declare(
   gutils
   GIT_REPOSITORY https://github.com/lord-ka/gutils.git
-  GIT_TAG        release-1.0.2
+  GIT_TAG        release-1.0.3
 )
 
 FetchContent_GetProperties(gutils)

@@ -12,8 +12,12 @@ bool gTree_storeData(int data, size_t level, FILE *out)
     return 0;
 }
 
-bool gTree_restoreData(int *data, char buffer[])
+bool gTree_restoreData(int *data, FILE *in)
 {
+    char buffer[MAX_BUFFER_LEN] = "";
+    if (getline(buffer, MAX_BUFFER_LEN, in) == 1)
+        return 1;
+
     if (sscanf(buffer, "%d", data) != 1)
         return 1;
     return 0;
