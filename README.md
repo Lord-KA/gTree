@@ -31,9 +31,9 @@ To use gTree (re)storing you need to define two functions (read more in gtree.h)
 3. GraphViz dumps
 4. CMake with fetching
 5. (Re)storing of a tree to/from a file in human-readalbe format
+6. Modern-Art capybara ASCII
 
 ## TODO
-1. Capybara ASCII art
-2. Unit tests
-3. Test coverage check
-4. Github CI
+1. Unit tests
+2. Test coverage check
+3. Github CI
