@@ -17,10 +17,16 @@ bool gTree_restoreData(int *data, FILE *in)
     char buffer[MAX_BUFFER_LEN] = "";
     if (getline(buffer, MAX_BUFFER_LEN, in) == 1)
         return 1;
+    fprintf(stderr, "buffer=#%s#\n", buffer);
 
     if (sscanf(buffer, "%d", data) != 1)
         return 1;
-    return 0;
+
+    if (getline(buffer, MAX_BUFFER_LEN, in) == 1)
+        return 1;
+
+    fprintf(stderr, "buffer=#%s#\n", buffer);
+    return !consistsOnly(buffer, "]");
 }
 
 

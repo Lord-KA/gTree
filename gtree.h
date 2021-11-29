@@ -386,8 +386,14 @@ gTree_status gTree_storeSubTree(const gTree *tree, size_t nodeId, size_t level, 
     for (size_t i = 0; i < level; ++i)
         fprintf(out, "\t");
     fprintf(out, "{\n");
-
-    gTree_storeData(node->data, level + 1, out);
+    for (size_t i = 0; i < level + 1; ++i)
+        fprintf(out, "\t");
+    fprintf(out, "[\n");
+    gTree_storeData(node->data, level + 2, out);
+    for (size_t i = 0; i < level + 1; ++i)
+        fprintf(out, "\t");
+    fprintf(out, "]\n");
+ 
     size_t childId = node->child;
     while (childId != -1) {
         status = gTree_storeSubTree(tree, childId, level + 1, out);
@@ -463,7 +469,6 @@ gTree_status gTree_restoreSubTree(gTree *tree, size_t nodeId, FILE *in)
         fprintf(stderr, "Restoring subTree from node %lu\n", nodeId);
     #endif
 
-    GTREE_ASSERT_LOG(gTree_restoreData(&node->data, in) == 0, gTree_status_BadData, tree->logStream);
     size_t  curChildId = -1;
     size_t prevChildId = -1;
     GTREE_TYPE dummyData = {};
@@ -489,6 +494,8 @@ gTree_status gTree_restoreSubTree(gTree *tree, size_t nodeId, FILE *in)
                 GTREE_NODE_BY_ID(tree, nodeId)->child = curChildId;
         } else if (consistsOnly(buffer, "}")) {
             --bracketCnt;
+        } else if (consistsOnly(buffer, "[")) {
+            GTREE_ASSERT_LOG(gTree_restoreData(&node->data, in) == 0, gTree_status_BadData, tree->logStream);
         }
     }
 
