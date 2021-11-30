@@ -347,16 +347,16 @@ gTree_status gTree_dumpPoolGraphViz(const gTree *tree, FILE *fout)
     
     for (size_t i = 0; i < tree->pool.capacity; ++i) {
         gTree_Node *node = &tree->pool.data[i].val;
-        fprintf(fout, "\t\tnode%lu [label=\"Node %lu | | {data | \'", i, i);
-        gTree_printData(node->data, fout);
-        fprintf(fout, "\'}\"]\n");
+        fprintf(fout, "\t\tnode%lu [label=\"Node %lu | | {data | ", i, i);
+        if ((&tree->pool.data[i])->allocated) 
+            gTree_printData(node->data, fout);
+        fprintf(fout, "}\"]\n");
     }
 
     fprintf(fout, "\t}\n");
     
     for (size_t i = 0; i < tree->pool.capacity; ++i) {
         gTree_Node *node = &tree->pool.data[i].val;
-        fprintf(stderr, "id = %lu | allocated = %d | data = %d\n", i, (&tree->pool.data[i])->allocated, node->data);
         if ((&tree->pool.data[i])->allocated && (node->parent != -1)) {
             fprintf(fout, "\tnode%lu -> node%lu\n", node->parent, i);
             if (node->sibling != -1)
