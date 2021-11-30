@@ -37,9 +37,9 @@ typedef gTree_Node GOBJPOOL_TYPE;           /// Type for utility Object Pool dat
  * @param level number of tabs to put before each line (just for aesthetics)
  * @param in/out filestreams to read/write
  */
-bool gTree_storeData  (GTREE_TYPE  data, size_t level, FILE *out);
-bool gTree_restoreData(GTREE_TYPE *data, FILE *in);                 
-
+bool  gTree_storeData  (GTREE_TYPE  data, size_t level, FILE *out);
+bool  gTree_restoreData(GTREE_TYPE *data, FILE *in);                 
+bool  gTree_printData  (GTREE_TYPE  data, FILE *out);
 
 /**
  * @brief main linked list structure
@@ -347,7 +347,9 @@ gTree_status gTree_dumpPoolGraphViz(const gTree *tree, FILE *fout)
     
     for (size_t i = 0; i < tree->pool.capacity; ++i) {
         gTree_Node *node = &tree->pool.data[i].val;
-        fprintf(fout, "\t\tnode%lu [label=\"Node %lu | | {data | " GTREE_PRINTF_CODE "}\"]\n", i, i, node->data);
+        fprintf(fout, "\t\tnode%lu [label=\"Node %lu | | {data | \'", i, i);
+        gTree_printData(node->data, fout);
+        fprintf(fout, "\'}\"]\n");
     }
 
     fprintf(fout, "\t}\n");

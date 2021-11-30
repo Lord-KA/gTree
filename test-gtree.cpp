@@ -1,5 +1,4 @@
 typedef int GTREE_TYPE;
-#define GTREE_PRINTF_CODE "%d"
 
 #include "gtree.h"
 
@@ -29,6 +28,11 @@ bool gTree_restoreData(int *data, FILE *in)
     return !consistsOnly(buffer, "]");
 }
 
+bool gTree_printData(int data, FILE *out)
+{
+    fprintf(out, "%d", data);
+    return 0;
+}
 
 int test_1()
 {

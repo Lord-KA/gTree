@@ -23,7 +23,7 @@ if(NOT gtree_POPULATED)
 endif()
 ```
 You have to pre-define `GTREE_TYPE` with macro or `typedef` before including the header
-To use gTree (re)storing you need to define two functions (read more in gtree.h)
+To use gTree (re)storing you need to define three functions (read more in gtree.h)
 
 ## DONE
 1. Basic abstract tree
