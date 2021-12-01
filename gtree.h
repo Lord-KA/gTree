@@ -437,7 +437,7 @@ bool consistsOnly(const char * const haystack, const char * const needle)
         return true;
 
     while (isspace(*(haystackIter))) 
-        haystackIter;
+        ++haystackIter;
     if (*haystackIter == '\0')
         return true;
     else
