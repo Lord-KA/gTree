@@ -32,8 +32,8 @@ To use gTree (re)storing you need to define three functions (read more in gtree.
 4. CMake with fetching
 5. (Re)storing of a tree to/from a file in human-readalbe format
 6. Modern-Art capybara ASCII
+7. Unit tests
+8. Github CI
 
 ## TODO
-1. Unit tests
-2. Test coverage check
-3. Github CI
+1. Test coverage check

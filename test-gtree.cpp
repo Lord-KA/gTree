@@ -1,6 +1,10 @@
 typedef int GTREE_TYPE;
 
+#include "gtest/gtest.h"
 #include "gtree.h"
+#include <random>
+
+std::mt19937 rnd(179);
 
 bool gTree_storeData(int data, size_t level, FILE *out) 
 {
@@ -34,74 +38,89 @@ bool gTree_printData(int data, FILE *out)
     return 0;
 }
 
-int test_1()
+int restore()
+{
+    gTree tree;
+    FILE *fin = fopen("store.gtree", "r");
+    EXPECT_FALSE(gTree_restoreTree(&tree, stderr, fin));
+    fclose(fin);
+
+    FILE *fout = fopen("dump.gv", "w");
+    EXPECT_FALSE(gTree_dumpPoolGraphViz(&tree, fout));
+    fclose(fout);
+
+    EXPECT_FALSE(gTree_dtor(&tree));
+
+    return 0;
+}
+
+
+TEST(Manual, fill_store_restore)
 {
     gTree treeStruct;
     gTree *tree = &treeStruct;
-    gTree_ctor(tree, NULL);
+    EXPECT_FALSE(gTree_ctor(tree, NULL));
 
     gTree_Node *node = NULL;
-    gObjPool_get(&tree->pool, tree->root, &node);
+    EXPECT_FALSE(gObjPool_get(&tree->pool, tree->root, &node));
     node->data = 1000;
 
     size_t id = 0;
 
-    gTree_addChild(tree, tree->root, &id, 1100);
-    gTree_addChild(tree, tree->root, &id, 1200);
-    gTree_addChild(tree, tree->root, &id, 1300);
-    gTree_addChild(tree, tree->root, &id, 1400);
+    EXPECT_FALSE(gTree_addChild(tree, tree->root, &id, 1100));
+    EXPECT_FALSE(gTree_addChild(tree, tree->root, &id, 1200));
+    EXPECT_FALSE(gTree_addChild(tree, tree->root, &id, 1300));
+    EXPECT_FALSE(gTree_addChild(tree, tree->root, &id, 1400));
 
-    gTree_addSibling(tree, 1, &id, 1500);
+    EXPECT_FALSE(gTree_addSibling(tree, 1, &id, 1500));
 
-    gTree_addChild(tree, 5, &id, 2100);
-    gTree_addChild(tree, 5, &id, 2200);
-    gTree_addChild(tree, 5, &id, 2300);
-    gTree_addChild(tree, 6,  &id, 3100);
-    gTree_addChild(tree, 6,  &id, 3200);
-    gTree_addChild(tree, 10, &id, 4100);
 
-    gTree_delChild(tree, 0, 4, NULL);
+    EXPECT_FALSE(gTree_addChild(tree, 5, &id, 2100));
+    EXPECT_FALSE(gTree_addChild(tree, 5, &id, 2200));
+    EXPECT_FALSE(gTree_addChild(tree, 5, &id, 2300));
+    EXPECT_FALSE(gTree_addChild(tree, 6,  &id, 3100));
+    EXPECT_FALSE(gTree_addChild(tree, 6,  &id, 3200));
+    EXPECT_FALSE(gTree_addChild(tree, 10, &id, 4100));
+
+    EXPECT_FALSE(gTree_delChild(tree, 0, 4, NULL));
 
     FILE *fout = fopen("dump.gv", "w");
-    gTree_dumpPoolGraphViz(tree, fout);
+    EXPECT_FALSE(gTree_dumpPoolGraphViz(tree, fout));
     fclose(fout);
 
-    gObjPool_dumpFree(&tree->pool, stderr);
+    EXPECT_FALSE(gObjPool_dumpFree(&tree->pool, stderr));
 
     fout = fopen("store.gtree", "w");
-    gTree_storeSubTree(tree, tree->root, 0, fout);
+    EXPECT_FALSE(gTree_storeSubTree(tree, tree->root, 0, fout));
     fclose(fout);
 
-    gTree_dtor(tree);
+    EXPECT_FALSE(gTree_dtor(tree));
 
-    return 0;
+    restore();
 }
 
-int test_2()
+TEST(Auto, massive_random_filling)
 {
-    gTree tree;
-    FILE *fin = fopen("store.gtree", "r");
-    gTree_restoreTree(&tree, stderr, fin);
-    fclose(fin);
+    gTree treeStruct;
+    gTree *tree = &treeStruct;
+    EXPECT_FALSE(gTree_ctor(tree, NULL));
+
+    gTree_Node *node = NULL;
+    EXPECT_FALSE(gObjPool_get(&tree->pool, tree->root, &node));
+    node->data = 0xFAFAFAFA;
+
+    size_t id = 0;
+    for (size_t i = 1; i < 1000; ++i) {
+        if (rnd() % 3 == 1 && i > 1) {
+            EXPECT_FALSE(gTree_addSibling(tree, rnd() % (i - 1) + 1, &id, rnd()));
+        } else {
+            EXPECT_FALSE(gTree_addChild(tree, rnd() % i, &id, rnd()));
+        }
+    }  
 
     FILE *fout = fopen("dump.gv", "w");
-    gTree_dumpPoolGraphViz(&tree, fout);
+    EXPECT_FALSE(gTree_dumpPoolGraphViz(tree, fout));
     fclose(fout);
 
-    gTree_dtor(&tree);
-
-    return 0;
-}
-
-int test_3()
-{
-    char buffer[MAX_BUFFER_LEN] = "1   \t {   ";
-    char needle[MAX_BUFFER_LEN] = "{";
-    printf("cosistsOnly(\"%s\", \"%s\") = %d\n", buffer, needle, consistsOnly(buffer, needle));
-    return 0;
-}
-
-int main()
-{
-    test_2();
+    EXPECT_FALSE(gTree_dtor(tree));
 }
