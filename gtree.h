@@ -224,23 +224,18 @@ gTree_status gTree_addSibling(gTree *tree, size_t siblingId, size_t *id, GTREE_T
 
 
 /**
- * @brief adds child to node after the last existing one
+ * @brief adds existing child to node after the last one
  * @param tree pointer to structure
  * @param nodeId id of a node to add child to
- * @param id ptr to write new childId to
- * @param data data to write to new node
+ * @param id id of a new child node
  * @return gTree status code
  */
-gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id, GTREE_TYPE data)
+gTree_status gTree_addExistChild(gTree *tree, size_t nodeId, size_t childId)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
 
     gTree_Node *node = NULL, *child = NULL, *sibling = NULL;
     gObjPool_status status = gObjPool_status_OK;
-    size_t childId = -1;
-
-    status = gObjPool_alloc(&tree->pool, &childId);
-    CHECK_POOL_STATUS(status);
 
     status = gObjPool_get(&tree->pool, nodeId, &node);
     CHECK_POOL_STATUS(status);
@@ -265,7 +260,35 @@ gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id, GTREE_TYPE d
     child->parent  = nodeId;
     child->child   = -1;
     child->sibling = -1;
+
+    return gTree_status_OK;
+}
+
+
+/**
+ * @brief adds child to node after the last existing one
+ * @param tree pointer to structure
+ * @param nodeId id of a node to add child to
+ * @param id ptr to write new childId to
+ * @param data data to write to new node
+ * @return gTree status code
+ */
+gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id, GTREE_TYPE data)
+{
+    GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
+
+    gTree_Node *node = NULL, *child = NULL, *sibling = NULL;
+    size_t childId = -1;
+
+    gObjPool_status poolStatus = gObjPool_alloc(&tree->pool, &childId);
+    CHECK_POOL_STATUS(poolStatus);
+
+    poolStatus = gObjPool_get(&tree->pool, childId, &child);
+    CHECK_POOL_STATUS(poolStatus);
     child->data = data;
+
+    gTree_status treeStatus = gTree_addExisChild(tree, nodeId, childId);
+    GTREE_ASSERT_LOG(treeStatus == gTree_status_OK, treeStatus, tree->logStream);
 
     *id = childId;
     
