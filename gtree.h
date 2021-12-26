@@ -287,7 +287,7 @@ gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id, GTREE_TYPE d
     CHECK_POOL_STATUS(poolStatus);
     child->data = data;
 
-    gTree_status treeStatus = gTree_addExisChild(tree, nodeId, childId);
+    gTree_status treeStatus = gTree_addExistChild(tree, nodeId, childId);
     GTREE_ASSERT_LOG(treeStatus == gTree_status_OK, treeStatus, tree->logStream);
 
     *id = childId;
