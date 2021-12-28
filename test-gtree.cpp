@@ -84,6 +84,8 @@ TEST(Manual, fill_store_restore)
 
     EXPECT_FALSE(gTree_delChild(tree, 0, 4, NULL));
 
+    EXPECT_FALSE(gTree_cloneSubtree(tree, tree->root, &id));
+
     FILE *fout = fopen("dump.gv", "w");
     EXPECT_FALSE(gTree_dumpPoolGraphViz(tree, fout));
     fclose(fout);
