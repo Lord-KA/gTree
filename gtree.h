@@ -218,6 +218,8 @@ gTree_status gTree_addSibling(gTree *tree, size_t siblingId, size_t *id, GTREE_T
     child->child   = -1;
     child->sibling = -1;
     child->data = data;
+    if (gPtrValid(id))
+        *id = childId;
     
     return gTree_status_OK;
 }
@@ -290,7 +292,8 @@ gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id, GTREE_TYPE d
     gTree_status treeStatus = gTree_addExistChild(tree, nodeId, childId);
     GTREE_ASSERT_LOG(treeStatus == gTree_status_OK, treeStatus, tree->logStream);
 
-    *id = childId;
+    if (gPtrValid(id))
+        *id = childId;
     
     return gTree_status_OK;
 }
@@ -347,7 +350,7 @@ gTree_status gTree_delChild(gTree *tree, size_t parentId, size_t pos, GTREE_TYPE
         node->sibling = -1;
     }
 
-    if (data)
+    if (gPtrValid(data))
         *data = node->data;
 
     gObjPool_free(&tree->pool, nodeId);
@@ -440,9 +443,11 @@ gTree_status gTree_storeSubTree(const gTree *tree, size_t nodeId, size_t level, 
  * @param needle   the null-terminating string to search for in haystack
  * @return true if consists only needle and surrounding spaces, false otherwize
  */
-bool consistsOnly(const char * const haystack, const char * const needle)
+bool consistsOnly(const char *const haystack, const char *const needle)
 {
     /* WARINING: needle and haystack must be null-terminating */
+    assert(gPtrValid(haystack));
+    assert(gPtrValid(needle));
 
     char *haystackIter = (char*)haystack;
     char *needleIter   = (char*)needle;
