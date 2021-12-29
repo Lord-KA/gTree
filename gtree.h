@@ -285,6 +285,42 @@ gTree_status gTree_addExistChild(gTree *tree, size_t nodeId, size_t childId)
 }
 
 
+gTree_status gTree_replaceNode(gTree *tree, size_t currentId, size_t replaceId)
+{
+    GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
+
+    gTree_Node *current = GTREE_NODE_BY_ID(tree, currentId);       
+    gTree_Node *replace = GTREE_NODE_BY_ID(tree, replaceId);       
+
+    size_t currentParentId = current->parent;
+
+    if (currentParentId != -1) {
+        gTree_Node *currentParent = GTREE_NODE_BY_ID(tree, currentParentId);
+
+        if (currentParent->child == currentId) {
+            currentParent->child = replaceId;
+        } else {
+            size_t childId = currentParent->child;
+            gTree_Node *child = NULL;
+            while ((child = GTREE_NODE_BY_ID(tree, childId))->sibling != currentId) {
+                childId = child->sibling;
+            }
+            child = GTREE_NODE_BY_ID(tree, childId);
+            child->sibling = replaceId;
+        }
+
+        replace->parent  = currentParentId;
+        replace->sibling = current->sibling;
+        current->parent  = -1;
+        current->sibling = -1;
+    } else {
+        fprintf(tree->logStream, "WARNING: attempt to replace parentless node, nothing to do!\n");
+    }
+
+    return gTree_status_OK;
+}
+
+
 /**
  * @brief adds child to node after the last existing one
  * @param tree pointer to structure
@@ -374,6 +410,53 @@ gTree_status gTree_delChild(gTree *tree, size_t parentId, size_t pos, GTREE_TYPE
         *data = node->data;
     
     GTREE_POOL_FREE(nodeId);
+    return gTree_status_OK;
+}
+
+
+gTree_status gTree_killSubtree(gTree *tree, size_t rootId)
+{
+    GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
+    size_t childId = GTREE_NODE_BY_ID(tree, rootId)->child;
+    while (childId != -1) {
+        size_t siblingId = GTREE_NODE_BY_ID(tree, childId)->sibling;
+        gTree_killSubtree(tree, childId);
+        childId = siblingId;
+    }
+    GTREE_POOL_FREE(rootId);
+    return gTree_status_OK;
+}
+
+
+gTree_status gTree_delSubtree(gTree *tree, size_t rootId)
+{
+    GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
+
+    size_t childId = GTREE_NODE_BY_ID(tree, rootId)->child;
+    while (childId != -1) {
+        size_t siblingId = GTREE_NODE_BY_ID(tree, childId)->sibling;
+        gTree_killSubtree(tree, childId);
+        childId = siblingId;
+    }
+
+    gTree_Node *node = GTREE_NODE_BY_ID(tree, rootId);
+    node->child = -1;
+    if (node->parent != -1) {
+        size_t parentId = node->parent;
+        gTree_Node *parent = GTREE_NODE_BY_ID(tree, parentId);
+        size_t siblingId = parent->child;
+        if (siblingId == rootId) {
+            parent->child = node->sibling;
+        } else {
+            while (GTREE_NODE_BY_ID(tree, siblingId)->sibling != rootId) {
+                siblingId = GTREE_NODE_BY_ID(tree, siblingId)->sibling;
+            }
+            GTREE_NODE_BY_ID(tree, siblingId)->sibling = node->sibling;
+        }
+    }
+
+    GTREE_POOL_FREE(rootId);
+
     return gTree_status_OK;
 }
 

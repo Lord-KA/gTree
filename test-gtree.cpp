@@ -82,9 +82,17 @@ TEST(Manual, fill_store_restore)
     EXPECT_FALSE(gTree_addChild(tree, 6,  &id, 3200));
     EXPECT_FALSE(gTree_addChild(tree, 10, &id, 4100));
 
-    EXPECT_FALSE(gTree_delChild(tree, 0, 4, NULL));
+    // EXPECT_FALSE(gTree_delSubtree(tree, 10));
 
-    EXPECT_FALSE(gTree_cloneSubtree(tree, tree->root, &id));
+    // EXPECT_FALSE(gTree_cloneSubtree(tree, tree->root, &id));
+    EXPECT_FALSE(gObjPool_alloc(&tree->pool, &id));
+    EXPECT_FALSE(gObjPool_get(&tree->pool, id, &node));
+    node->data = 6666;
+    node->sibling = -1;
+    node->parent  = -1;
+    node->child   = -1;
+    EXPECT_FALSE(gTree_replaceNode(tree, 10, id));
+    EXPECT_FALSE(gTree_replaceNode(tree, 4, 10));
 
     FILE *fout = fopen("dump.gv", "w");
     EXPECT_FALSE(gTree_dumpPoolGraphViz(tree, fout));
@@ -93,17 +101,18 @@ TEST(Manual, fill_store_restore)
     EXPECT_FALSE(gObjPool_dumpFree(&tree->pool, stderr));
 
     fout = fopen("store.gtree", "w");
-    EXPECT_FALSE(gTree_storeSubTree(tree, tree->root, 0, fout));
+    // EXPECT_FALSE(gTree_storeSubTree(tree, tree->root, 0, fout));
     fclose(fout);
 
     EXPECT_FALSE(gTree_dtor(tree));
 
-    restore();
+    // restore();
 }
 
 TEST(Auto, massive_random_filling)
 {
     gTree treeStruct;
+    return;
     gTree *tree = &treeStruct;
     EXPECT_FALSE(gTree_ctor(tree, NULL));
 
