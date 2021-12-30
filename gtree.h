@@ -125,7 +125,7 @@ static const char gTree_statusMsg[gTree_status_Cnt][MAX_MSG_LEN] = {
 /**
  * @brief Macro for easier and more secure node access in gObjPool
  */
-#define GTREE_NODE_BY_ID(tree, id) ({                               \
+#define GTREE_NODE_BY_ID(id) ({                                     \
     gTree_Node *node;                                                \
     GTREE_CHECK_POOL_STATUS(gObjPool_get(&tree->pool, id, &node));    \
     node;                                                              \
@@ -162,6 +162,9 @@ static const char gTree_statusMsg[gTree_status_Cnt][MAX_MSG_LEN] = {
     gTree_status macroStatus = (expr);                                             \
     GTREE_ASSERT_LOG(macroStatus == gTree_status_OK, macroStatus, tree->logStream); \
 })
+
+
+#define GTREE_ID_VAL(id) GTREE_ASSERT_LOG(gObjPool_idValid(&tree->pool, id), gTree_status_BadId, tree->logStream)
 
 
 /**
@@ -234,6 +237,7 @@ gTree_status gTree_dtor(gTree *tree)
 gTree_status gTree_addSibling(gTree *tree, size_t siblingId, size_t *id_out, GTREE_TYPE data)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
+    GTREE_ID_VAL(siblingId);
 
     gTree_Node *sibling = NULL, *child = NULL;
     gObjPool_status status = gObjPool_status_OK;
@@ -277,6 +281,8 @@ gTree_status gTree_addSibling(gTree *tree, size_t siblingId, size_t *id_out, GTR
 gTree_status gTree_addExistChild(gTree *tree, size_t nodeId, size_t childId)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
+    GTREE_ID_VAL(nodeId);
+    GTREE_ID_VAL(childId);
 
     gTree_Node *node = NULL, *child = NULL, *sibling = NULL;
     gObjPool_status status = gObjPool_status_OK;
@@ -319,24 +325,26 @@ gTree_status gTree_addExistChild(gTree *tree, size_t nodeId, size_t childId)
 gTree_status gTree_replaceNode(gTree *tree, size_t currentId, size_t replaceId)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
+    GTREE_ID_VAL(currentId);
+    GTREE_ID_VAL(replaceId);
 
-    gTree_Node *current = GTREE_NODE_BY_ID(tree, currentId);       
-    gTree_Node *replace = GTREE_NODE_BY_ID(tree, replaceId);       
+    gTree_Node *current = GTREE_NODE_BY_ID(currentId);       
+    gTree_Node *replace = GTREE_NODE_BY_ID(replaceId);       
 
     size_t currentParentId = current->parent;
 
     if (currentParentId != -1) {
-        gTree_Node *currentParent = GTREE_NODE_BY_ID(tree, currentParentId);
+        gTree_Node *currentParent = GTREE_NODE_BY_ID(currentParentId);
 
         if (currentParent->child == currentId) {
             currentParent->child = replaceId;
         } else {
             size_t childId = currentParent->child;
             gTree_Node *child = NULL;
-            while ((child = GTREE_NODE_BY_ID(tree, childId))->sibling != currentId) {
+            while ((child = GTREE_NODE_BY_ID(childId))->sibling != currentId) {
                 childId = child->sibling;
             }
-            child = GTREE_NODE_BY_ID(tree, childId);
+            child = GTREE_NODE_BY_ID(childId);
             child->sibling = replaceId;
         }
 
@@ -363,6 +371,7 @@ gTree_status gTree_replaceNode(gTree *tree, size_t currentId, size_t replaceId)
 gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id_out, GTREE_TYPE data)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
+    GTREE_ID_VAL(nodeId);
 
     gTree_Node *node = NULL, *child = NULL, *sibling = NULL;
     size_t childId = -1;
@@ -397,25 +406,26 @@ gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id_out, GTREE_TY
 gTree_status gTree_delChild(gTree *tree, size_t parentId, size_t pos, GTREE_TYPE *data)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
+    GTREE_ID_VAL(parentId);
 
-    size_t siblingId = GTREE_NODE_BY_ID(tree, parentId)->child;
+    size_t siblingId = GTREE_NODE_BY_ID(parentId)->child;
     gTree_Node *node    = NULL;
     gTree_Node *sibling = NULL;
     size_t childId = -1;
     size_t nodeId  = -1;
     if (pos == 0) {
         nodeId = siblingId;
-        node = GTREE_NODE_BY_ID(tree, nodeId);
-        sibling = GTREE_NODE_BY_ID(tree, siblingId);
+        node = GTREE_NODE_BY_ID(nodeId);
+        sibling = GTREE_NODE_BY_ID(siblingId);
         childId = sibling->child;
-        GTREE_NODE_BY_ID(tree, parentId)->child = childId;
+        GTREE_NODE_BY_ID(parentId)->child = childId;
     } else {
         for (size_t i = 0; i + 1 < pos; ++i) {
-            siblingId = GTREE_NODE_BY_ID(tree, siblingId)->sibling;
+            siblingId = GTREE_NODE_BY_ID(siblingId)->sibling;
         }
-        sibling = GTREE_NODE_BY_ID(tree, siblingId);
+        sibling = GTREE_NODE_BY_ID(siblingId);
         nodeId = sibling->sibling;
-        node = GTREE_NODE_BY_ID(tree, nodeId);
+        node = GTREE_NODE_BY_ID(nodeId);
         childId = node->child;
         sibling->sibling = childId;
     }
@@ -426,7 +436,7 @@ gTree_status gTree_delChild(gTree *tree, size_t parentId, size_t pos, GTREE_TYPE
         size_t subSiblingId = childId;
         gTree_Node *subSibling = NULL;
         while (subSiblingId != -1) {
-            subSibling = GTREE_NODE_BY_ID(tree, subSiblingId);
+            subSibling = GTREE_NODE_BY_ID(subSiblingId);
             subSiblingId = subSibling->sibling;
             subSibling->parent = parentId;
         }
@@ -454,12 +464,15 @@ gTree_status gTree_delChild(gTree *tree, size_t parentId, size_t pos, GTREE_TYPE
 gTree_status gTree_killSubtree(gTree *tree, size_t rootId)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
-    size_t childId = GTREE_NODE_BY_ID(tree, rootId)->child;
+    GTREE_ID_VAL(rootId);
+
+    size_t childId = GTREE_NODE_BY_ID(rootId)->child;
     while (childId != -1) {
-        size_t siblingId = GTREE_NODE_BY_ID(tree, childId)->sibling;
+        size_t siblingId = GTREE_NODE_BY_ID(childId)->sibling;
         gTree_killSubtree(tree, childId);
         childId = siblingId;
     }
+
     GTREE_POOL_FREE(rootId);
     return gTree_status_OK;
 }
@@ -474,27 +487,28 @@ gTree_status gTree_killSubtree(gTree *tree, size_t rootId)
 gTree_status gTree_delSubtree(gTree *tree, size_t rootId)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
+    GTREE_ID_VAL(rootId);
 
-    size_t childId = GTREE_NODE_BY_ID(tree, rootId)->child;
+    size_t childId = GTREE_NODE_BY_ID(rootId)->child;
     while (childId != -1) {
-        size_t siblingId = GTREE_NODE_BY_ID(tree, childId)->sibling;
+        size_t siblingId = GTREE_NODE_BY_ID(childId)->sibling;
         gTree_killSubtree(tree, childId);
         childId = siblingId;
     }
 
-    gTree_Node *node = GTREE_NODE_BY_ID(tree, rootId);
+    gTree_Node *node = GTREE_NODE_BY_ID(rootId);
     node->child = -1;
     if (node->parent != -1) {
         size_t parentId = node->parent;
-        gTree_Node *parent = GTREE_NODE_BY_ID(tree, parentId);
+        gTree_Node *parent = GTREE_NODE_BY_ID(parentId);
         size_t siblingId = parent->child;
         if (siblingId == rootId) {
             parent->child = node->sibling;
         } else {
-            while (GTREE_NODE_BY_ID(tree, siblingId)->sibling != rootId) {
-                siblingId = GTREE_NODE_BY_ID(tree, siblingId)->sibling;
+            while (GTREE_NODE_BY_ID(siblingId)->sibling != rootId) {
+                siblingId = GTREE_NODE_BY_ID(siblingId)->sibling;
             }
-            GTREE_NODE_BY_ID(tree, siblingId)->sibling = node->sibling;
+            GTREE_NODE_BY_ID(siblingId)->sibling = node->sibling;
         }
     }
 
@@ -514,12 +528,13 @@ gTree_status gTree_delSubtree(gTree *tree, size_t rootId)
 gTree_status gTree_cloneSubtree(gTree *tree, const size_t nodeId, size_t *id_out) {
     GTREE_ASSERT_LOG(gPtrValid(tree),   gTree_status_BadStructPtr,  stderr);
     GTREE_ASSERT_LOG(gPtrValid(id_out), gTree_status_BadOutPtr, tree->logStream);
+    GTREE_ID_VAL(nodeId);
     
     gTree_status status = gTree_status_OK;
     size_t newNodeId = GTREE_POOL_ALLOC();
     
-    gTree_Node *node    = GTREE_NODE_BY_ID(tree, nodeId);
-    gTree_Node *newNode = GTREE_NODE_BY_ID(tree, newNodeId);
+    gTree_Node *node    = GTREE_NODE_BY_ID(nodeId);
+    gTree_Node *newNode = GTREE_NODE_BY_ID(newNodeId);
     newNode->data = node->data;
     newNode->child   = -1;
     newNode->sibling = -1;
@@ -533,7 +548,7 @@ gTree_status gTree_cloneSubtree(gTree *tree, const size_t nodeId, size_t *id_out
         status = gTree_addExistChild(tree, newNodeId, newChildId);
         GTREE_IS_OK(status);
 
-        childId = GTREE_NODE_BY_ID(tree, childId)->sibling;
+        childId = GTREE_NODE_BY_ID(childId)->sibling;
     }
 
     *id_out = newNodeId;
@@ -590,8 +605,9 @@ gTree_status gTree_storeSubTree(const gTree *tree, size_t nodeId, size_t level, 
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
     GTREE_ASSERT_LOG(gPtrValid(out),  gTree_status_BadDumpOutPtr, tree->logStream);
+    GTREE_ID_VAL(nodeId);
 
-    gTree_Node *node = GTREE_NODE_BY_ID(tree, nodeId);
+    gTree_Node *node = GTREE_NODE_BY_ID(nodeId);
     gTree_status status = gTree_status_OK;
 
     for (size_t i = 0; i < level; ++i)
@@ -609,7 +625,7 @@ gTree_status gTree_storeSubTree(const gTree *tree, size_t nodeId, size_t level, 
     while (childId != -1) {
         status = gTree_storeSubTree(tree, childId, level + 1, out);
         GTREE_ASSERT_LOG(status == gTree_status_OK, status, tree->logStream);
-        childId = GTREE_NODE_BY_ID(tree, childId)->sibling;
+        childId = GTREE_NODE_BY_ID(childId)->sibling;
     }
 
     for (size_t i = 0; i < level; ++i)
@@ -673,8 +689,9 @@ gTree_status gTree_restoreSubTree(gTree *tree, size_t nodeId, FILE *in)
 
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
     GTREE_ASSERT_LOG(gPtrValid(in),   gTree_status_FileErr,       tree->logStream);
+    GTREE_ID_VAL(nodeId);
 
-    gTree_Node *node = GTREE_NODE_BY_ID(tree, nodeId);
+    gTree_Node *node = GTREE_NODE_BY_ID(nodeId);
     gTree_status status = gTree_status_OK;
     
     char buffer[MAX_BUFFER_LEN] = "";
@@ -693,7 +710,7 @@ gTree_status gTree_restoreSubTree(gTree *tree, size_t nodeId, FILE *in)
             prevChildId = curChildId;
             status = gTree_addChild(tree, nodeId, &curChildId, dummyData);
             GTREE_ASSERT_LOG(status == gTree_status_OK, status, tree->logStream);
-            gTree_Node *curChild = GTREE_NODE_BY_ID(tree, curChildId);
+            gTree_Node *curChild = GTREE_NODE_BY_ID(curChildId);
             curChild->parent = nodeId;
             curChild->child  = -1;
 
@@ -702,9 +719,9 @@ gTree_status gTree_restoreSubTree(gTree *tree, size_t nodeId, FILE *in)
             GTREE_ASSERT_LOG(status == gTree_status_OK, status, tree->logStream);
 
             if (prevChildId != -1)
-                GTREE_NODE_BY_ID(tree, prevChildId)->sibling = curChildId;
+                GTREE_NODE_BY_ID(prevChildId)->sibling = curChildId;
             else 
-                GTREE_NODE_BY_ID(tree, nodeId)->child = curChildId;
+                GTREE_NODE_BY_ID(nodeId)->child = curChildId;
         } else if (consistsOnly(buffer, "}")) {
             --bracketCnt;
         } else if (consistsOnly(buffer, "[")) {

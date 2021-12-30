@@ -45,7 +45,7 @@ int restore()
     EXPECT_FALSE(gTree_restoreTree(&tree, stderr, fin));
     fclose(fin);
 
-    FILE *fout = fopen("dump.gv", "w");
+    FILE *fout = fopen("dump_3.gv", "w");
     EXPECT_FALSE(gTree_dumpPoolGraphViz(&tree, fout));
     fclose(fout);
 
@@ -104,7 +104,7 @@ TEST(Manual, derivator)
 
     EXPECT_FALSE(gTree_replaceNode(tree, 1, 4));
 
-    FILE *fout = fopen("dump.gv", "w");
+    FILE *fout = fopen("dump_1.gv", "w");
     EXPECT_FALSE(gTree_dumpPoolGraphViz(tree, fout));
     fclose(fout);
 
@@ -156,19 +156,19 @@ TEST(Manual, fill_store_restore)
     // EXPECT_FALSE(gTree_replaceNode(tree, 10, id));
     // EXPECT_FALSE(gTree_replaceNode(tree, 4, 10));
 
-    FILE *fout = fopen("dump.gv", "w");
+    FILE *fout = fopen("dump_2.gv", "w");
     EXPECT_FALSE(gTree_dumpPoolGraphViz(tree, fout));
     fclose(fout);
 
     EXPECT_FALSE(gObjPool_dumpFree(&tree->pool, stderr));
 
     fout = fopen("store.gtree", "w");
-    // EXPECT_FALSE(gTree_storeSubTree(tree, tree->root, 0, fout));
+    EXPECT_FALSE(gTree_storeSubTree(tree, tree->root, 0, fout));
     fclose(fout);
 
     EXPECT_FALSE(gTree_dtor(tree));
 
-    // restore();
+    restore();
 }
 
 TEST(Auto, massive_random_filling)
@@ -190,7 +190,7 @@ TEST(Auto, massive_random_filling)
         }
     }  
 
-    FILE *fout = fopen("dump.gv", "w");
+    FILE *fout = fopen("dump_4.gv", "w");
     EXPECT_FALSE(gTree_dumpPoolGraphViz(tree, fout));
     fclose(fout);
 
