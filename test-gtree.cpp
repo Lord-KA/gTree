@@ -54,6 +54,65 @@ int restore()
     return 0;
 }
 
+TEST(Manual, derivator) 
+{
+    gTree treeStruct;
+    gTree *tree = &treeStruct;
+    EXPECT_FALSE(gTree_ctor(tree, NULL));
+    size_t id = 0;
+    EXPECT_FALSE(gTree_addChild(tree, tree->root, &id, 1100));
+    EXPECT_FALSE(gTree_addChild(tree, id, NULL, 1200));
+    EXPECT_FALSE(gTree_addChild(tree, id, NULL, 1300));
+     
+    gTree_Node *node = NULL;
+    EXPECT_FALSE(gObjPool_alloc(&tree->pool, &id));
+    EXPECT_FALSE(gObjPool_get(&tree->pool, id, &node));
+    node->data = 3000;
+    node->sibling = -1;
+    node->parent  = -1;
+    node->child   = -1;
+
+    EXPECT_FALSE(gObjPool_alloc(&tree->pool, &id));
+    EXPECT_FALSE(gObjPool_get(&tree->pool, id, &node));
+    node->data = 3100;
+    node->sibling = -1;
+    node->parent  = -1;
+    node->child   = -1;
+
+    EXPECT_FALSE(gObjPool_alloc(&tree->pool, &id));
+    EXPECT_FALSE(gObjPool_get(&tree->pool, id, &node));
+    node->data = 3200;
+    node->sibling = -1;
+    node->parent  = -1;
+    node->child   = -1;
+ 
+    EXPECT_FALSE(gTree_addExistChild(tree, 4, 5));
+    EXPECT_FALSE(gTree_addExistChild(tree, 4, 6));
+        
+
+    EXPECT_FALSE(gTree_cloneSubtree(tree, 2, &id));
+    EXPECT_FALSE(gTree_cloneSubtree(tree, 3, &id));
+
+    EXPECT_FALSE(gTree_cloneSubtree(tree, 2, &id));
+    EXPECT_FALSE(gTree_cloneSubtree(tree, 3, &id));
+
+    EXPECT_FALSE(gTree_addExistChild(tree, 5, 7));
+    EXPECT_FALSE(gTree_addExistChild(tree, 5, 8));
+
+    EXPECT_FALSE(gTree_addExistChild(tree, 6, 9));
+    EXPECT_FALSE(gTree_addExistChild(tree, 6, 10));
+
+    EXPECT_FALSE(gTree_replaceNode(tree, 1, 4));
+
+    FILE *fout = fopen("dump.gv", "w");
+    EXPECT_FALSE(gTree_dumpPoolGraphViz(tree, fout));
+    fclose(fout);
+
+    EXPECT_FALSE(gObjPool_dumpFree(&tree->pool, stderr));
+
+ 
+    EXPECT_FALSE(gTree_dtor(tree));
+}
 
 TEST(Manual, fill_store_restore)
 {
@@ -84,15 +143,18 @@ TEST(Manual, fill_store_restore)
 
     // EXPECT_FALSE(gTree_delSubtree(tree, 10));
 
-    // EXPECT_FALSE(gTree_cloneSubtree(tree, tree->root, &id));
+    EXPECT_FALSE(gTree_cloneSubtree(tree, 3, &id));
+    EXPECT_FALSE(gTree_addExistChild(tree, 4, id));
+    /*
     EXPECT_FALSE(gObjPool_alloc(&tree->pool, &id));
     EXPECT_FALSE(gObjPool_get(&tree->pool, id, &node));
     node->data = 6666;
     node->sibling = -1;
     node->parent  = -1;
     node->child   = -1;
-    EXPECT_FALSE(gTree_replaceNode(tree, 10, id));
-    EXPECT_FALSE(gTree_replaceNode(tree, 4, 10));
+    */
+    // EXPECT_FALSE(gTree_replaceNode(tree, 10, id));
+    // EXPECT_FALSE(gTree_replaceNode(tree, 4, 10));
 
     FILE *fout = fopen("dump.gv", "w");
     EXPECT_FALSE(gTree_dumpPoolGraphViz(tree, fout));
@@ -112,7 +174,6 @@ TEST(Manual, fill_store_restore)
 TEST(Auto, massive_random_filling)
 {
     gTree treeStruct;
-    return;
     gTree *tree = &treeStruct;
     EXPECT_FALSE(gTree_ctor(tree, NULL));
 

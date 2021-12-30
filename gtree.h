@@ -9,11 +9,13 @@
 
 #include "gutils.h"             /// Some handy utils
 
+
 static const size_t MAX_MSG_LEN = 64;           /// Max log message length
 
 static const size_t MAX_BUFFER_LEN = 1024;      /// Max restore buffer length
 
 static const char LOG_DELIM[] = "=============================";    /// Delim line for text logs
+
 
 /** 
  * @brief basic tree node containing children id and the data
@@ -25,6 +27,7 @@ struct gTree_Node
     size_t parent;                  /// Id of the previos node in tree
     size_t sibling;                 /// Id of the right sibling node
 } typedef gTree_Node;
+
 
 typedef gTree_Node GOBJPOOL_TYPE;           /// Type for utility Object Pool data structure
 
@@ -40,6 +43,7 @@ typedef gTree_Node GOBJPOOL_TYPE;           /// Type for utility Object Pool dat
 bool  gTree_storeData  (GTREE_TYPE  data, size_t level, FILE *out);
 bool  gTree_restoreData(GTREE_TYPE *data, FILE *in);                 
 bool  gTree_printData  (GTREE_TYPE  data, FILE *out);
+
 
 /**
  * @brief main linked list structure
@@ -127,17 +131,37 @@ static const char gTree_statusMsg[gTree_status_Cnt][MAX_MSG_LEN] = {
     node;                                                              \
 })
 
-#define GTREE_POOL_ALLOC() ({                                                                 \
-    size_t id = -1;                                                                            \
-    GTREE_CHECK_POOL_STATUS(gObjPool_alloc(&tree->pool, &id));                                  \
-    id;                                                                                          \
+
+/**
+ * @brief Macro for handy and secure allocation
+ */
+#define GTREE_POOL_ALLOC() ({                                                                      \
+    size_t macroId = -1;                                                                            \
+    gTree_Node *macroNode = NULL;                                                                    \
+    GTREE_CHECK_POOL_STATUS(gObjPool_alloc(&tree->pool, &macroId));                                   \
+    GTREE_CHECK_POOL_STATUS(gObjPool_get(&tree->pool, macroId, &macroNode));                           \
+    macroNode->sibling = -1;                                                                            \
+    macroNode->parent  = -1;                                                                             \
+    macroNode->child   = -1;                                                                              \
+    macroId;                                                                                               \
 })
-  
+ 
+
+/**
+ * @brief Macro for handy and secure deallocation
+ */
 #define GTREE_POOL_FREE(id) ({                                                            \
     GTREE_CHECK_POOL_STATUS(gObjPool_free(&tree->pool, id));                               \
 })
 
-#define GTREE_IS_OK(status) GTREE_ASSERT_LOG(status == gTree_status_OK, status, tree->logStream);
+
+/**
+ * @brief Macro to check if expression or status is OK
+ */
+#define GTREE_IS_OK(expr) ({                                                      \
+    gTree_status macroStatus = (expr);                                             \
+    GTREE_ASSERT_LOG(macroStatus == gTree_status_OK, macroStatus, tree->logStream); \
+})
 
 
 /**
@@ -285,6 +309,13 @@ gTree_status gTree_addExistChild(gTree *tree, size_t nodeId, size_t childId)
 }
 
 
+/**
+ * @brief replace node with parentless one (changes only nodes parent and siblings)
+ * @param tree pointer to structure
+ * @param currentId id of a node to replace
+ * @param replaceId id of an parentless node to replace with
+ * @return gTree status code
+ */
 gTree_status gTree_replaceNode(gTree *tree, size_t currentId, size_t replaceId)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
@@ -414,6 +445,12 @@ gTree_status gTree_delChild(gTree *tree, size_t parentId, size_t pos, GTREE_TYPE
 }
 
 
+/**
+ * @brief dealloces subtree by a node (parent and sibling of root are not changed)
+ * @param tree pointer to structure
+ * @param rootId id of a subtree root to kill
+ * @return gTree status code
+ */
 gTree_status gTree_killSubtree(gTree *tree, size_t rootId)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
@@ -428,6 +465,12 @@ gTree_status gTree_killSubtree(gTree *tree, size_t rootId)
 }
 
 
+/**
+ * @brief deletes subtree by a node (parent and sibling of root are modified accordingly)
+ * @param tree pointer to structure
+ * @param rootId id of a subtree root to delete
+ * @return gTree status code
+ */
 gTree_status gTree_delSubtree(gTree *tree, size_t rootId)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
@@ -461,6 +504,13 @@ gTree_status gTree_delSubtree(gTree *tree, size_t rootId)
 }
 
 
+/**
+ * @brief clones subtree by a node (creates parentless subtree same as the given)
+ * @param tree pointer to structure
+ * @param nodeId id of a subtree root to clone
+ * @param[out] id_out id of the cloned root
+ * @return gTree status code
+ */
 gTree_status gTree_cloneSubtree(gTree *tree, const size_t nodeId, size_t *id_out) {
     GTREE_ASSERT_LOG(gPtrValid(tree),   gTree_status_BadStructPtr,  stderr);
     GTREE_ASSERT_LOG(gPtrValid(id_out), gTree_status_BadOutPtr, tree->logStream);
@@ -468,8 +518,6 @@ gTree_status gTree_cloneSubtree(gTree *tree, const size_t nodeId, size_t *id_out
     gTree_status status = gTree_status_OK;
     size_t newNodeId = GTREE_POOL_ALLOC();
     
-    fprintf(stderr, "HERE!\n");
-
     gTree_Node *node    = GTREE_NODE_BY_ID(tree, nodeId);
     gTree_Node *newNode = GTREE_NODE_BY_ID(tree, newNodeId);
     newNode->data = node->data;
@@ -491,6 +539,7 @@ gTree_status gTree_cloneSubtree(gTree *tree, const size_t nodeId, size_t *id_out
     *id_out = newNodeId;
     return status;
 }
+
 
 /**
  * @brief dumps objPool of the tree to fout stream in GraphViz format
