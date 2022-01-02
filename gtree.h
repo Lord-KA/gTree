@@ -308,7 +308,6 @@ gTree_status gTree_addExistChild(gTree *tree, size_t nodeId, size_t childId)
         sibling->sibling = childId;
     }
     child->parent  = nodeId;
-    child->child   = -1;
     child->sibling = -1;
 
     return gTree_status_OK;
