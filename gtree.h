@@ -243,14 +243,10 @@ gTree_status gTree_addSibling(gTree *tree, size_t siblingId, size_t *id_out, GTR
     gObjPool_status status = gObjPool_status_OK;
 
     size_t childId = -1;
-    status = gObjPool_alloc(&tree->pool, &childId);
-    GTREE_CHECK_POOL_STATUS(status);
+    childId = GTREE_POOL_ALLOC();
 
-    status = gObjPool_get(&tree->pool, siblingId, &sibling);
-    GTREE_CHECK_POOL_STATUS(status);
-
-    status = gObjPool_get(&tree->pool, childId, &child);
-    GTREE_CHECK_POOL_STATUS(status);
+    sibling = GTREE_NODE_BY_ID(siblingId);
+    child   = GTREE_NODE_BY_ID(childId);
 
     while (sibling->sibling != -1) {
         siblingId = sibling->sibling;
@@ -375,11 +371,9 @@ gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id_out, GTREE_TY
     gTree_Node *node = NULL, *child = NULL, *sibling = NULL;
     size_t childId = -1;
 
-    gObjPool_status poolStatus = gObjPool_alloc(&tree->pool, &childId);
-    GTREE_CHECK_POOL_STATUS(poolStatus);
 
-    poolStatus = gObjPool_get(&tree->pool, childId, &child);
-    GTREE_CHECK_POOL_STATUS(poolStatus);
+    childId = GTREE_POOL_ALLOC();
+    child   = GTREE_NODE_BY_ID(childId);
     child->data = data;
 
     gTree_status treeStatus = gTree_addExistChild(tree, nodeId, childId);
@@ -528,6 +522,7 @@ gTree_status gTree_cloneSubtree(gTree *tree, const size_t nodeId, size_t *id_out
     GTREE_ASSERT_LOG(gPtrValid(tree),   gTree_status_BadStructPtr,  stderr);
     GTREE_ASSERT_LOG(gPtrValid(id_out), gTree_status_BadOutPtr, tree->logStream);
     GTREE_ID_VAL(nodeId);
+    fprintf(stderr, "cloneSubtree: nodeId = %lu\n", nodeId);
     
     gTree_status status = gTree_status_OK;
     size_t newNodeId = GTREE_POOL_ALLOC();
@@ -570,7 +565,11 @@ gTree_status gTree_dumpPoolGraphViz(const gTree *tree, FILE *fout)
     
     for (size_t i = 0; i < tree->pool.capacity; ++i) {
         gTree_Node *node = &tree->pool.data[i].val;
-        fprintf(fout, "\t\tnode%lu [label=\"Node %lu | | {data | ", i, i);
+        #ifdef EXTRA_VERBOSE
+            fprintf(fout, "\t\tnode%lu [label=\"Node %lu | {child | %lu} | {sibling | %lu} | {data | ", i, i, node->child, node->sibling);
+        #else
+            fprintf(fout, "\t\tnode%lu [label=\"Node %lu | | {data | ", i, i);
+        #endif  
         if ((&tree->pool.data[i])->allocated) 
             gTree_printData(node->data, fout);
         fprintf(fout, "}\"]\n");
