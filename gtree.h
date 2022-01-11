@@ -173,7 +173,7 @@ static const char gTree_statusMsg[gTree_status_Cnt][MAX_MSG_LEN] = {
  * @param newLogStream new log stream, could be `NULL`, then logs will be written to `stderr`
  * @return gTree status code
  */
-gTree_status gTree_ctor(gTree *tree, FILE *newLogStream) 
+static gTree_status gTree_ctor(gTree *tree, FILE *newLogStream) 
 {
     if (!gPtrValid(tree)) {                                          
         FILE *out;                                                   
@@ -209,7 +209,7 @@ gTree_status gTree_ctor(gTree *tree, FILE *newLogStream)
  * @param tree pointer to structure to destruct
  * @return gTree status code
  */
-gTree_status gTree_dtor(gTree *tree) 
+static gTree_status gTree_dtor(gTree *tree) 
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
 
@@ -234,7 +234,7 @@ gTree_status gTree_dtor(gTree *tree)
  * @param data data to write to new node
  * @return gTree status code
  */
-gTree_status gTree_addSibling(gTree *tree, size_t siblingId, size_t *id_out, GTREE_TYPE data)
+static gTree_status gTree_addSibling(gTree *tree, size_t siblingId, size_t *id_out, GTREE_TYPE data)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
     GTREE_ID_VAL(siblingId);
@@ -274,7 +274,7 @@ gTree_status gTree_addSibling(gTree *tree, size_t siblingId, size_t *id_out, GTR
  * @param id id of a new child node
  * @return gTree status code
  */
-gTree_status gTree_addExistChild(gTree *tree, size_t nodeId, size_t childId)
+static gTree_status gTree_addExistChild(gTree *tree, size_t nodeId, size_t childId)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
     GTREE_ID_VAL(nodeId);
@@ -317,7 +317,7 @@ gTree_status gTree_addExistChild(gTree *tree, size_t nodeId, size_t childId)
  * @param replaceId id of an parentless node to replace with
  * @return gTree status code
  */
-gTree_status gTree_replaceNode(gTree *tree, size_t currentId, size_t replaceId)
+static gTree_status gTree_replaceNode(gTree *tree, size_t currentId, size_t replaceId)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
     GTREE_ID_VAL(currentId);
@@ -363,7 +363,7 @@ gTree_status gTree_replaceNode(gTree *tree, size_t currentId, size_t replaceId)
  * @param data data to write to new node
  * @return gTree status code
  */
-gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id_out, GTREE_TYPE data)
+static gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id_out, GTREE_TYPE data)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
     GTREE_ID_VAL(nodeId);
@@ -396,7 +396,7 @@ gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id_out, GTREE_TY
  * @param data data ptr to write to write poped data (could be NULL, then data discarded)
  * @return gTree status code
  */
-gTree_status gTree_delChild(gTree *tree, size_t parentId, size_t pos, GTREE_TYPE *data)
+static gTree_status gTree_delChild(gTree *tree, size_t parentId, size_t pos, GTREE_TYPE *data)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
     GTREE_ID_VAL(parentId);
@@ -454,7 +454,7 @@ gTree_status gTree_delChild(gTree *tree, size_t parentId, size_t pos, GTREE_TYPE
  * @param rootId id of a subtree root to kill
  * @return gTree status code
  */
-gTree_status gTree_killSubtree(gTree *tree, size_t rootId)
+static gTree_status gTree_killSubtree(gTree *tree, size_t rootId)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
     GTREE_ID_VAL(rootId);
@@ -477,7 +477,7 @@ gTree_status gTree_killSubtree(gTree *tree, size_t rootId)
  * @param rootId id of a subtree root to delete
  * @return gTree status code
  */
-gTree_status gTree_delSubtree(gTree *tree, size_t rootId)
+static gTree_status gTree_delSubtree(gTree *tree, size_t rootId)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
     GTREE_ID_VAL(rootId);
@@ -518,7 +518,7 @@ gTree_status gTree_delSubtree(gTree *tree, size_t rootId)
  * @param[out] id_out id of the cloned root
  * @return gTree status code
  */
-gTree_status gTree_cloneSubtree(gTree *tree, const size_t nodeId, size_t *id_out) {
+static gTree_status gTree_cloneSubtree(gTree *tree, const size_t nodeId, size_t *id_out) {
     GTREE_ASSERT_LOG(gPtrValid(tree),   gTree_status_BadStructPtr,  stderr);
     GTREE_ASSERT_LOG(gPtrValid(id_out), gTree_status_BadOutPtr, tree->logStream);
     GTREE_ID_VAL(nodeId);
@@ -556,7 +556,7 @@ gTree_status gTree_cloneSubtree(gTree *tree, const size_t nodeId, size_t *id_out
  * @param fout stream to write dump to
  * @return gTree status code
  */
-gTree_status gTree_dumpPoolGraphViz(const gTree *tree, FILE *fout)
+static gTree_status gTree_dumpPoolGraphViz(const gTree *tree, FILE *fout)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
     GTREE_ASSERT_LOG(gPtrValid(fout), gTree_status_BadDumpOutPtr, tree->logStream);
@@ -599,7 +599,7 @@ gTree_status gTree_dumpPoolGraphViz(const gTree *tree, FILE *fout)
  * @param out filestream to write to
  * @return gTree status code
  */
-gTree_status gTree_storeSubTree(const gTree *tree, size_t nodeId, size_t level, FILE *out) 
+static gTree_status gTree_storeSubTree(const gTree *tree, size_t nodeId, size_t level, FILE *out) 
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
     GTREE_ASSERT_LOG(gPtrValid(out),  gTree_status_BadDumpOutPtr, tree->logStream);
@@ -640,7 +640,7 @@ gTree_status gTree_storeSubTree(const gTree *tree, size_t nodeId, size_t level, 
  * @param needle   the null-terminating string to search for in haystack
  * @return true if consists only needle and surrounding spaces, false otherwize
  */
-bool consistsOnly(const char *const haystack, const char *const needle)
+static bool consistsOnly(const char *const haystack, const char *const needle)
 {
     /* WARINING: needle and haystack must be null-terminating */
     assert(gPtrValid(haystack));
@@ -677,7 +677,7 @@ bool consistsOnly(const char *const haystack, const char *const needle)
  * @param in filestream to read from
  * @return gTree status code
  */
-gTree_status gTree_restoreSubTree(gTree *tree, size_t nodeId, FILE *in)
+static gTree_status gTree_restoreSubTree(gTree *tree, size_t nodeId, FILE *in)
 {
     /*
      * WARNING: Tree restoration (below) just somewhat supports 
@@ -743,7 +743,7 @@ gTree_status gTree_restoreSubTree(gTree *tree, size_t nodeId, FILE *in)
  * @param in filestream to read from
  * @return gTree status code
  */
-gTree_status gTree_restoreTree(gTree *tree, FILE *newLogStream, FILE *in)       
+static gTree_status gTree_restoreTree(gTree *tree, FILE *newLogStream, FILE *in)       
 {
     /* WARNING: tree structure must be uninitialized */
 

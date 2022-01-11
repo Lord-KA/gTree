@@ -38,7 +38,7 @@ endif()
 FetchContent_Declare(
   gobjpool
   GIT_REPOSITORY https://github.com/Lord-KA/gObjPool.git
-  GIT_TAG        release-1.0.3.0
+  GIT_TAG        release-1.0.4
 )
 if(NOT gobjpool_POPULATED)
   FetchContent_Populate(gobjpool)
