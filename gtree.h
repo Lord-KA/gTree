@@ -17,10 +17,10 @@ static const size_t MAX_BUFFER_LEN = 1024;      /// Max restore buffer length
 static const char LOG_DELIM[] = "=============================";    /// Delim line for text logs
 
 
-/** 
+/**
  * @brief basic tree node containing children id and the data
  */
-struct gTree_Node         
+struct gTree_Node
 {
     GTREE_TYPE data;                /// Stored user-provided data
     size_t child;                   /// Id of the first child
@@ -41,7 +41,7 @@ typedef gTree_Node GOBJPOOL_TYPE;           /// Type for utility Object Pool dat
  * @param in/out filestreams to read/write
  */
 bool  gTree_storeData  (GTREE_TYPE  data, size_t level, FILE *out);
-bool  gTree_restoreData(GTREE_TYPE *data, FILE *in);                 
+bool  gTree_restoreData(GTREE_TYPE *data, FILE *in);
 bool  gTree_printData  (GTREE_TYPE  data, FILE *out);
 
 
@@ -59,11 +59,11 @@ struct gTree
 /**
  * @brief status codes for gTree
  */
-enum gTree_status 
+enum gTree_status
 {
     gTree_status_OK,
     gTree_status_AllocErr,
-    gTree_status_BadCapacity, 
+    gTree_status_BadCapacity,
     gTree_status_BadStructPtr,
     gTree_status_BadId,
     /* WANINIG: statuses above must be compatible with gObjPool */
@@ -108,7 +108,7 @@ static const char gTree_statusMsg[gTree_status_Cnt][MAX_MSG_LEN] = {
 
 
 /**
- * @brief Local version of ASSERT_LOG macro 
+ * @brief Local version of ASSERT_LOG macro
  */
 #ifndef NLOGS
 #define GTREE_ASSERT_LOG(expr, errCode, logStream) ({                                                  \
@@ -118,7 +118,7 @@ static const char gTree_statusMsg[gTree_status_Cnt][MAX_MSG_LEN] = {
     }                                                                                                      \
 })
 #else
-#define GTREE_ASSERT_LOG(...) 
+#define GTREE_ASSERT_LOG(...)
 #endif
 
 
@@ -137,15 +137,14 @@ static const char gTree_statusMsg[gTree_status_Cnt][MAX_MSG_LEN] = {
  */
 #define GTREE_POOL_ALLOC() ({                                                                      \
     size_t macroId = -1;                                                                            \
-    gTree_Node *macroNode = NULL;                                                                    \
-    GTREE_CHECK_POOL_STATUS(gObjPool_alloc(&tree->pool, &macroId));                                   \
-    GTREE_CHECK_POOL_STATUS(gObjPool_get(&tree->pool, macroId, &macroNode));                           \
-    macroNode->sibling = -1;                                                                            \
-    macroNode->parent  = -1;                                                                             \
-    macroNode->child   = -1;                                                                              \
-    macroId;                                                                                               \
+    GTREE_CHECK_POOL_STATUS(gObjPool_alloc(&tree->pool, &macroId));                                  \
+    gTree_Node *macroNode = GOBJPOOL_VAL_BY_ID_UNSAFE(&tree->pool, macroId);                          \
+    macroNode->sibling = -1;                                                                           \
+    macroNode->parent  = -1;                                                                            \
+    macroNode->child   = -1;                                                                             \
+    macroId;                                                                                              \
 })
- 
+
 
 /**
  * @brief Macro for handy and secure deallocation
@@ -173,16 +172,16 @@ static const char gTree_statusMsg[gTree_status_Cnt][MAX_MSG_LEN] = {
  * @param newLogStream new log stream, could be `NULL`, then logs will be written to `stderr`
  * @return gTree status code
  */
-static gTree_status gTree_ctor(gTree *tree, FILE *newLogStream) 
+static gTree_status gTree_ctor(gTree *tree, FILE *newLogStream)
 {
-    if (!gPtrValid(tree)) {                                          
-        FILE *out;                                                   
-        if (!gPtrValid(newLogStream))                                
-            out = stderr;                                            
-        else                                                         
-            out = newLogStream;                                      
+    if (!gPtrValid(tree)) {
+        FILE *out;
+        if (!gPtrValid(newLogStream))
+            out = stderr;
+        else
+            out = newLogStream;
         fprintf(out, "ERROR: bad structure ptr provided to tree ctor!\n");
-        return gTree_status_BadStructPtr;                         
+        return gTree_status_BadStructPtr;
     }
 
     tree->logStream = stderr;
@@ -205,11 +204,11 @@ static gTree_status gTree_ctor(gTree *tree, FILE *newLogStream)
 
 
 /**
- * @brief gTree destructor 
+ * @brief gTree destructor
  * @param tree pointer to structure to destruct
  * @return gTree status code
  */
-static gTree_status gTree_dtor(gTree *tree) 
+static gTree_status gTree_dtor(gTree *tree)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr, stderr);
 
@@ -253,16 +252,16 @@ static gTree_status gTree_addSibling(gTree *tree, size_t siblingId, size_t *id_o
         status = gObjPool_get(&tree->pool, siblingId, &sibling);
         GTREE_CHECK_POOL_STATUS(status);
     }
-    sibling->sibling = childId;    
+    sibling->sibling = childId;
     child->parent  = sibling->parent;
     child->child   = -1;
     child->sibling = -1;
     child->data = data;
     if (gPtrValid(id_out))
         *id_out = childId;
-    else 
+    else
         fprintf(tree->logStream, "%s\n", gTree_statusMsg[gTree_status_BadOutPtr]);
-    
+
     return gTree_status_OK;
 }
 
@@ -286,7 +285,7 @@ static gTree_status gTree_addExistChild(gTree *tree, size_t nodeId, size_t child
     status = gObjPool_get(&tree->pool, nodeId, &node);
     GTREE_CHECK_POOL_STATUS(status);
     size_t siblingId = node->child;
- 
+
     status = gObjPool_get(&tree->pool, childId, &child);
     GTREE_CHECK_POOL_STATUS(status);
 
@@ -323,8 +322,8 @@ static gTree_status gTree_replaceNode(gTree *tree, size_t currentId, size_t repl
     GTREE_ID_VAL(currentId);
     GTREE_ID_VAL(replaceId);
 
-    gTree_Node *current = GTREE_NODE_BY_ID(currentId);       
-    gTree_Node *replace = GTREE_NODE_BY_ID(replaceId);       
+    gTree_Node *current = GTREE_NODE_BY_ID(currentId);
+    gTree_Node *replace = GTREE_NODE_BY_ID(replaceId);
 
     size_t currentParentId = current->parent;
 
@@ -381,9 +380,9 @@ static gTree_status gTree_addChild(gTree *tree, size_t nodeId, size_t *id_out, G
 
     if (gPtrValid(id_out))
         *id_out = childId;
-    else 
+    else
         fprintf(tree->logStream, "%s\n", gTree_statusMsg[gTree_status_BadOutPtr]);
-    
+
     return gTree_status_OK;
 }
 
@@ -422,7 +421,7 @@ static gTree_status gTree_delChild(gTree *tree, size_t parentId, size_t pos, GTR
         childId = node->child;
         sibling->sibling = childId;
     }
-    
+
     assert(gPtrValid(node));
 
     if (childId != -1) {
@@ -442,7 +441,7 @@ static gTree_status gTree_delChild(gTree *tree, size_t parentId, size_t pos, GTR
 
     if (gPtrValid(data))
         *data = node->data;
-    
+
     GTREE_POOL_FREE(nodeId);
     return gTree_status_OK;
 }
@@ -522,11 +521,13 @@ static gTree_status gTree_cloneSubtree(gTree *tree, const size_t nodeId, size_t 
     GTREE_ASSERT_LOG(gPtrValid(tree),   gTree_status_BadStructPtr,  stderr);
     GTREE_ASSERT_LOG(gPtrValid(id_out), gTree_status_BadOutPtr, tree->logStream);
     GTREE_ID_VAL(nodeId);
-    fprintf(stderr, "cloneSubtree: nodeId = %lu\n", nodeId);
-    
+    #ifdef EXTRA_VERBOSE
+        fprintf(stderr, "cloneSubtree: nodeId = %lu\n", nodeId);
+    #endif
+
     gTree_status status = gTree_status_OK;
     size_t newNodeId = GTREE_POOL_ALLOC();
-    
+
     gTree_Node *node    = GTREE_NODE_BY_ID(nodeId);
     gTree_Node *newNode = GTREE_NODE_BY_ID(newNodeId);
     newNode->data = node->data;
@@ -560,26 +561,26 @@ static gTree_status gTree_dumpPoolGraphViz(const gTree *tree, FILE *fout)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
     GTREE_ASSERT_LOG(gPtrValid(fout), gTree_status_BadDumpOutPtr, tree->logStream);
-    
+
     fprintf(fout, "digraph dilist {\n\tnode [shape=record]\n\tsubgraph cluster {\n");
-    
+
     for (size_t i = 0; i < tree->pool.capacity; ++i) {
-        gTree_Node *node = &tree->pool.data[i].val;
+        gTree_Node *node = GOBJPOOL_VAL_BY_ID_UNSAFE(&tree->pool, i);
         #ifdef EXTRA_VERBOSE
             fprintf(fout, "\t\tnode%lu [label=\"Node %lu | {child | %lu} | {sibling | %lu} | {data | ", i, i, node->child, node->sibling);
         #else
             fprintf(fout, "\t\tnode%lu [label=\"Node %lu | | {data | ", i, i);
-        #endif  
-        if ((&tree->pool.data[i])->allocated) 
+        #endif
+        if (GOBJPOOL_GET_NODE_UNSAFE(&tree->pool, i)->allocated)
             gTree_printData(node->data, fout);
         fprintf(fout, "}\"]\n");
     }
 
     fprintf(fout, "\t}\n");
-    
+
     for (size_t i = 0; i < tree->pool.capacity; ++i) {
-        gTree_Node *node = &tree->pool.data[i].val;
-        if ((&tree->pool.data[i])->allocated && (node->parent != -1)) {
+        gTree_Node *node = GOBJPOOL_VAL_BY_ID_UNSAFE(&tree->pool, i);
+        if (GOBJPOOL_GET_NODE_UNSAFE(&tree->pool, i)->allocated && (node->parent != -1)) {
             fprintf(fout, "\tnode%lu -> node%lu\n", node->parent, i);
             if (node->sibling != -1)
                 fprintf(fout, "\tnode%lu -> node%lu [style=dotted]\n", i, node->sibling);
@@ -599,7 +600,7 @@ static gTree_status gTree_dumpPoolGraphViz(const gTree *tree, FILE *fout)
  * @param out filestream to write to
  * @return gTree status code
  */
-static gTree_status gTree_storeSubTree(const gTree *tree, size_t nodeId, size_t level, FILE *out) 
+static gTree_status gTree_storeSubTree(const gTree *tree, size_t nodeId, size_t level, FILE *out)
 {
     GTREE_ASSERT_LOG(gPtrValid(tree), gTree_status_BadStructPtr,  stderr);
     GTREE_ASSERT_LOG(gPtrValid(out),  gTree_status_BadDumpOutPtr, tree->logStream);
@@ -618,7 +619,7 @@ static gTree_status gTree_storeSubTree(const gTree *tree, size_t nodeId, size_t 
     for (size_t i = 0; i < level + 1; ++i)
         fprintf(out, "\t");
     fprintf(out, "]\n");
- 
+
     size_t childId = node->child;
     while (childId != -1) {
         status = gTree_storeSubTree(tree, childId, level + 1, out);
@@ -661,7 +662,7 @@ static bool consistsOnly(const char *const haystack, const char *const needle)
     if (*haystackIter == '\0')
         return true;
 
-    while (isspace(*(haystackIter))) 
+    while (isspace(*(haystackIter)))
         ++haystackIter;
     if (*haystackIter == '\0')
         return true;
@@ -680,8 +681,8 @@ static bool consistsOnly(const char *const haystack, const char *const needle)
 static gTree_status gTree_restoreSubTree(gTree *tree, size_t nodeId, FILE *in)
 {
     /*
-     * WARNING: Tree restoration (below) just somewhat supports 
-     *          empty lines and doesn't support nor checks lines 
+     * WARNING: Tree restoration (below) just somewhat supports
+     *          empty lines and doesn't support nor checks lines
      *          that don't follow the format.
      */
 
@@ -691,7 +692,7 @@ static gTree_status gTree_restoreSubTree(gTree *tree, size_t nodeId, FILE *in)
 
     gTree_Node *node = GTREE_NODE_BY_ID(nodeId);
     gTree_status status = gTree_status_OK;
-    
+
     char buffer[MAX_BUFFER_LEN] = "";
     #ifdef EXTRA_VERBOSE
         fprintf(stderr, "Restoring subTree from node %lu\n", nodeId);
@@ -701,7 +702,7 @@ static gTree_status gTree_restoreSubTree(gTree *tree, size_t nodeId, FILE *in)
     size_t prevChildId = -1;
     GTREE_TYPE dummyData = {};
     int bracketCnt = 1;
-    while ((bracketCnt > 0) && !feof(in)) {          
+    while ((bracketCnt > 0) && !feof(in)) {
         GTREE_ASSERT_LOG(getline(buffer, MAX_BUFFER_LEN, in) == 0, gTree_status_FileErr, tree->logStream);
         if (consistsOnly(buffer, "{")) {
             ++bracketCnt;
@@ -718,7 +719,7 @@ static gTree_status gTree_restoreSubTree(gTree *tree, size_t nodeId, FILE *in)
 
             if (prevChildId != -1)
                 GTREE_NODE_BY_ID(prevChildId)->sibling = curChildId;
-            else 
+            else
                 GTREE_NODE_BY_ID(nodeId)->child = curChildId;
         } else if (consistsOnly(buffer, "}")) {
             --bracketCnt;
@@ -743,7 +744,7 @@ static gTree_status gTree_restoreSubTree(gTree *tree, size_t nodeId, FILE *in)
  * @param in filestream to read from
  * @return gTree status code
  */
-static gTree_status gTree_restoreTree(gTree *tree, FILE *newLogStream, FILE *in)       
+static gTree_status gTree_restoreTree(gTree *tree, FILE *newLogStream, FILE *in)
 {
     /* WARNING: tree structure must be uninitialized */
 
@@ -756,6 +757,6 @@ static gTree_status gTree_restoreTree(gTree *tree, FILE *newLogStream, FILE *in)
         status = gTree_restoreSubTree(tree, tree->root, in);
         GTREE_ASSERT_LOG(status == gTree_status_OK, status, tree->logStream);
     }
-    
+
     return gTree_status_OK;
 }
